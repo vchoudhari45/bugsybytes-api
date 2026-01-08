@@ -1,0 +1,2 @@
+src/data/** filter=git-crypt diff=git-crypt
+src/data/config.py !filter !diff

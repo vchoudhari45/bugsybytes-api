@@ -1,0 +1,17 @@
+# black: automatic Python code formatter
+black
+
+# isort: automatic import sorting tool
+isort
+
+# flake8: Python linter for style & error checking
+flake8
+
+# tox: test automation across environments
+tox
+
+# locust: load & performance testing tool
+locust
+
+# httpie: command-line HTTP client for manual API testing
+httpie
