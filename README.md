@@ -51,6 +51,9 @@ python -m src.service.gsec.portfolio_tracker
 
 # Nifty 50 Trackers
 python -m src.service.nifty50.portfolio_tracker
+
+# Price DB Writer
+python -m src.service.portfolio.price_db_writer
 ```
 
 Run tox to lint code, execute pytest tests, and generate/validate tests with schemathesis

@@ -36,3 +36,6 @@ pytest
 
 # holidays
 holidays
+
+# yfinance
+yfinance

@@ -25,6 +25,9 @@ UPSTOX_ACCESS_TOKEN = os.getenv("UPSTOX_ACCESS_TOKEN")
 QUANTITY_LAG_DAYS = 2
 DEFAULT_TARGET_XIRR = 0.0801
 
+# Portfolio
+LEDGER_PRICE_DB_DIR = BASE_DIR / "portfolio/ledger/prices"
+
 # Terminal Codes
 RED_BOLD = "\033[1;91m"
 RESET = "\033[0m"
