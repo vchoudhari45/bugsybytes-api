@@ -27,6 +27,12 @@ DEFAULT_TARGET_XIRR = 0.0801
 
 # Portfolio
 LEDGER_PRICE_DB_DIR = BASE_DIR / "portfolio/ledger/prices"
+LEDGER_ME_DIR = BASE_DIR / "portfolio/ledger-me/"
+LEDGER_MOM_DIR = BASE_DIR / "portfolio/ledger-mom/"
+LEDGER_PAPA_DIR = BASE_DIR / "portfolio/ledger-papa/"
+TRANSACTION_ME_DIR = BASE_DIR / "portfolio/transactions-me/"
+TRANSACTION_MOM_DIR = BASE_DIR / "portfolio/transactions-mom/"
+TRANSACTION_PAPA_DIR = BASE_DIR / "portfolio/transactions-papa/"
 
 # Terminal Codes
 RED_BOLD = "\033[1;91m"

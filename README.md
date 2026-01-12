@@ -54,6 +54,9 @@ python -m src.service.nifty50.portfolio_tracker
 
 # Price DB Writer
 python -m src.service.portfolio.price_db_writer
+
+# Ledger Entry Generator
+python -m src.service.portfolio.ledger_entry_generator
 ```
 
 Run tox to lint code, execute pytest tests, and generate/validate tests with schemathesis
