@@ -4,8 +4,10 @@ import sys
 from src.data.config import (
     LEDGER_ME_DIR,
     LEDGER_MOM_DIR,
+    LEDGER_PAPA_DIR,
     TRANSACTION_ME_DIR,
     TRANSACTION_MOM_DIR,
+    TRANSACTION_PAPA_DIR,
 )
 
 
@@ -40,9 +42,9 @@ if __name__ == "__main__":
         json_to_ledger(
             f"{TRANSACTION_MOM_DIR}/2020.json", f"{LEDGER_MOM_DIR}/2020.ledger"
         )
-        # json_to_ledger(
-        #     f"{TRANSACTION_PAPA_DIR}/2020.json", f"{LEDGER_PAPA_DIR}/2020.ledger"
-        # )
+        json_to_ledger(
+            f"{TRANSACTION_PAPA_DIR}/2020.json", f"{LEDGER_PAPA_DIR}/2020.ledger"
+        )
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(2)
