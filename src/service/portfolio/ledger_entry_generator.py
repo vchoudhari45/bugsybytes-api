@@ -1,4 +1,3 @@
-import json
 import sys
 
 from src.data.config import (
@@ -11,40 +10,69 @@ from src.data.config import (
 )
 
 
-def json_to_ledger(json_file, output_file):
-    with open(json_file, "r", encoding="utf-8") as f:
-        txns = json.load(f)
-
+def csv_to_ledger(csv_file, output_file):
+    """
+    Read pipe-separated CSV in format:
+    DATE(YYYY-MM-DD)|TRANSACTION_REMARK|FROM_ACCOUNT|FROM_VALUE|TO_ACCOUNT|TO_VALUE
+    and convert to ledger-cli format.
+    """
     lines = []
-    for t in txns:
-        lines.append(f"{t['date']} {t['description']}".rstrip())
-        for p in t["postings"]:
-            if "amount" in p:
-                lines.append(
-                    f"    {p['account']:<50}{p['amount']:>12} {p['commodity']}"
-                )
-            else:
-                lines.append(f"    {p['account']}")
-        lines.append("")
 
+    with open(csv_file, "r", encoding="utf-8") as f:
+        next(f, None)  # skip header
+
+        for row in f:
+            row = row.strip()
+            if not row:
+                continue
+
+            parts = row.split("|")
+            if len(parts) != 6:
+                print(f"Malformed row: {row}", file=sys.stderr)
+                sys.exit(1)
+
+            date, description, from_account, from_value, to_account, to_value = parts
+
+            # Ledger-cli first line: date + description
+            lines.append(f"{date} {description}".rstrip())
+
+            # Indented postings
+            lines.append(f"    {from_account:<50}{from_value}")
+            lines.append(f"    {to_account:<50}{to_value}")
+
+            # Empty line between transactions
+            lines.append("")
+
+    # Remove last empty line if present
     if lines and lines[-1] == "":
         lines.pop()
 
+    # Write ledger file
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
 
 if __name__ == "__main__":
     try:
-        json_to_ledger(
-            f"{TRANSACTION_ME_DIR}/2020.json", f"{LEDGER_ME_DIR}/2020.ledger"
+        # 2020
+        csv_to_ledger(f"{TRANSACTION_ME_DIR}/2020.csv", f"{LEDGER_ME_DIR}/2020.ledger")
+        csv_to_ledger(
+            f"{TRANSACTION_MOM_DIR}/2020.csv", f"{LEDGER_MOM_DIR}/2020.ledger"
         )
-        json_to_ledger(
-            f"{TRANSACTION_MOM_DIR}/2020.json", f"{LEDGER_MOM_DIR}/2020.ledger"
+        csv_to_ledger(
+            f"{TRANSACTION_PAPA_DIR}/2020.csv", f"{LEDGER_PAPA_DIR}/2020.ledger"
         )
-        json_to_ledger(
-            f"{TRANSACTION_PAPA_DIR}/2020.json", f"{LEDGER_PAPA_DIR}/2020.ledger"
-        )
+
+        # 2021
+        # csv_to_ledger(
+        #     f"{TRANSACTION_ME_DIR}/2021.csv", f"{LEDGER_ME_DIR}/2021.ledger"
+        # )
+        # csv_to_ledger(
+        #     f"{TRANSACTION_MOM_DIR}/2021.csv", f"{LEDGER_MOM_DIR}/2021.ledger"
+        # )
+        # csv_to_ledger(
+        #     f"{TRANSACTION_PAPA_DIR}/2021.csv", f"{LEDGER_PAPA_DIR}/2021.ledger"
+        # )
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(2)
