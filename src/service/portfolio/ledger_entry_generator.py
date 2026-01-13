@@ -26,7 +26,7 @@ def csv_to_ledger(csv_file, output_file):
             if not row:
                 continue
 
-            parts = row.split("|")
+            parts = row.split(",")
             if len(parts) != 6:
                 print(f"Malformed row: {row}", file=sys.stderr)
                 sys.exit(1)
