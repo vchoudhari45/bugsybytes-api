@@ -64,14 +64,20 @@ if __name__ == "__main__":
         )
 
         # 2021
-        csv_to_ledger(
-            f"{TRANSACTION_ME_DIR}/2021.csv", f"{LEDGER_ME_DIR}/2021.ledger"
-        )
+        csv_to_ledger(f"{TRANSACTION_ME_DIR}/2021.csv", f"{LEDGER_ME_DIR}/2021.ledger")
         csv_to_ledger(
             f"{TRANSACTION_MOM_DIR}/2021.csv", f"{LEDGER_MOM_DIR}/2021.ledger"
         )
         csv_to_ledger(
             f"{TRANSACTION_PAPA_DIR}/2021.csv", f"{LEDGER_PAPA_DIR}/2021.ledger"
+        )
+        # 2022
+        csv_to_ledger(f"{TRANSACTION_ME_DIR}/2022.csv", f"{LEDGER_ME_DIR}/2022.ledger")
+        csv_to_ledger(
+            f"{TRANSACTION_MOM_DIR}/2022.csv", f"{LEDGER_MOM_DIR}/2022.ledger"
+        )
+        csv_to_ledger(
+            f"{TRANSACTION_PAPA_DIR}/2022.csv", f"{LEDGER_PAPA_DIR}/2022.ledger"
         )
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
