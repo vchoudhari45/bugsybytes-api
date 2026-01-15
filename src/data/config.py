@@ -13,7 +13,6 @@ GSEC_PORTFOLIO_CASHFLOW_FILE = BASE_DIR / "gsec/lookup/gsec_portfolio_cashflow.c
 GSEC_PORTFOLIO_CASHFLOW_BY_YEAR_FILE = (
     BASE_DIR / "gsec/lookup/gsec_portfolio_cashflow_by_year.csv"
 )
-GSEC_GTT_ORDER_FILE = BASE_DIR / "gsec/lookup/gsec_gtt_recommendation.csv"
 
 # Nifty50 Configs
 NSE_NIFTY50_PRE_MARKET_DATA_DIR = BASE_DIR / "nifty_50/nse_pre_market_data/"
