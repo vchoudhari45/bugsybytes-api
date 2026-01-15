@@ -83,7 +83,9 @@ if __name__ == "__main__":
 
         # 2023
         csv_to_ledger(f"{TRANSACTION_ME_DIR}/2023.csv", f"{LEDGER_ME_DIR}/2023.ledger")
-
+        csv_to_ledger(
+            f"{TRANSACTION_MOM_DIR}/2023.csv", f"{LEDGER_MOM_DIR}/2023.ledger"
+        )
         # 2024
         csv_to_ledger(f"{TRANSACTION_ME_DIR}/2024.csv", f"{LEDGER_ME_DIR}/2024.ledger")
 
