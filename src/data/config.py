@@ -25,7 +25,7 @@ QUANTITY_LAG_DAYS = 2
 DEFAULT_TARGET_XIRR = 0.0801
 
 # Portfolio
-LEDGER_PRICE_DB_DIR = BASE_DIR / "portfolio/ledger/prices"
+LEDGER_PRICE_DB_DIR = BASE_DIR / "portfolio/common/prices"
 LEDGER_ME_DIR = BASE_DIR / "portfolio/ledger-me/"
 LEDGER_MOM_DIR = BASE_DIR / "portfolio/ledger-mom/"
 LEDGER_PAPA_DIR = BASE_DIR / "portfolio/ledger-papa/"

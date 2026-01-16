@@ -86,11 +86,17 @@ if __name__ == "__main__":
         csv_to_ledger(
             f"{TRANSACTION_MOM_DIR}/2023.csv", f"{LEDGER_MOM_DIR}/2023.ledger"
         )
+        csv_to_ledger(
+            f"{TRANSACTION_PAPA_DIR}/2023.csv", f"{LEDGER_PAPA_DIR}/2023.ledger"
+        )
 
         # 2024
         csv_to_ledger(f"{TRANSACTION_ME_DIR}/2024.csv", f"{LEDGER_ME_DIR}/2024.ledger")
         csv_to_ledger(
             f"{TRANSACTION_MOM_DIR}/2024.csv", f"{LEDGER_MOM_DIR}/2024.ledger"
+        )
+        csv_to_ledger(
+            f"{TRANSACTION_PAPA_DIR}/2024.csv", f"{LEDGER_PAPA_DIR}/2024.ledger"
         )
 
         # 2025
@@ -98,9 +104,18 @@ if __name__ == "__main__":
         csv_to_ledger(
             f"{TRANSACTION_MOM_DIR}/2025.csv", f"{LEDGER_MOM_DIR}/2025.ledger"
         )
+        csv_to_ledger(
+            f"{TRANSACTION_PAPA_DIR}/2025.csv", f"{LEDGER_PAPA_DIR}/2025.ledger"
+        )
 
         # 2026
         csv_to_ledger(f"{TRANSACTION_ME_DIR}/2026.csv", f"{LEDGER_ME_DIR}/2026.ledger")
+        csv_to_ledger(
+            f"{TRANSACTION_MOM_DIR}/2026.csv", f"{LEDGER_MOM_DIR}/2026.ledger"
+        )
+        csv_to_ledger(
+            f"{TRANSACTION_PAPA_DIR}/2026.csv", f"{LEDGER_PAPA_DIR}/2026.ledger"
+        )
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(2)
