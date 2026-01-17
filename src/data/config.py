@@ -33,6 +33,16 @@ TRANSACTION_ME_DIR = BASE_DIR / "portfolio/transactions-me/"
 TRANSACTION_MOM_DIR = BASE_DIR / "portfolio/transactions-mom/"
 TRANSACTION_PAPA_DIR = BASE_DIR / "portfolio/transactions-papa/"
 
+LEDGER_ME_MAIN = BASE_DIR / "portfolio/ledger-me/main.ledger"
+LEDGER_MOM_MAIN = BASE_DIR / "portfolio/ledger-mom/main.ledger"
+LEDGER_PAPA_MAIN = BASE_DIR / "portfolio/ledger-papa/main.ledger"
+
+# Account
+LEDGER_ACCOUNT_LIST = BASE_DIR / "portfolio/common/accounts.db"
+
+# Portfolio Report
+PORTFOLIO_REPORT = BASE_DIR / "portfolio/report.csv"
+
 # Terminal Codes
 RED_BOLD = "\033[1;91m"
 RESET = "\033[0m"
