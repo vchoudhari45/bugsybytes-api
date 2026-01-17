@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from openpyxl import Workbook
-from openpyxl.styles import PatternFill
+from openpyxl.styles import Alignment, Font, PatternFill
 
 from src.data.config import (
     LEDGER_ACCOUNT_LIST,
@@ -15,12 +15,10 @@ from src.data.config import (
     PORTFOLIO_RECON_REPORT,
 )
 
-
 EXPECTED_BALANCES: Dict[str, Dict[str, float]] = {}
 with open(PORTFOLIO_EXPECTED_BALANCES, "r", encoding="utf-8") as f:
     filtered_lines = (
-        line for line in f
-        if line.strip() and not line.lstrip().startswith("#")
+        line for line in f if line.strip() and not line.lstrip().startswith("#")
     )
     reader = csv.DictReader(filtered_lines)
     for row in reader:
@@ -161,41 +159,72 @@ def generate_reconciled_xlsx(
         start_color="FFC7CE",
         end_color="FFC7CE",
     )
-
     WHITE = PatternFill(
         fill_type="solid",
         start_color="FFFFFF",
         end_color="FFFFFF",
     )
+    HEADER_BLUE = PatternFill(
+        fill_type="solid",
+        start_color="4285F4",
+        end_color="4285F4",
+    )
+    header_font = Font(color="FFFFFF", bold=True)
 
-    # Write CSV
-    headers = ["Account"]
-    for currency in currencies:
-        for year in years:
-            headers.append(f"{year}-{currency}")
+    # Headers - Column 1
+    ws.cell(row=1, column=1, value="Accounts")
+    ws.cell(row=1, column=1).alignment = Alignment(horizontal="left", vertical="center")
+    ws.cell(row=1, column=1).fill = HEADER_BLUE
+    ws.cell(row=1, column=1).font = header_font
 
-    ws.append(headers)
+    col = 2
+    for year in years:
+        for currency in currencies:
+            cell = ws.cell(row=1, column=col, value=f"{year}-{currency}")
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.fill = HEADER_BLUE
+            cell.font = header_font
+            col += 1
 
+    # Data rows
+    row_idx = 2
     for account in accounts:
-        row = [account]
-        for key in headers[1:]:
-            row.append(all_balances[account].get(key, 0.0))
-        ws.append(row)
+        # Account name left-aligned
+        cell_account = ws.cell(row=row_idx, column=1, value=account)
+        cell_account.alignment = Alignment(horizontal="left", vertical="center")
 
-        row_idx = ws.max_row
-        for col_idx, key in enumerate(headers[1:], start=2):
-            cell = ws.cell(row=row_idx, column=col_idx)
-            actual = float(cell.value or 0)
+        col = 2
+        currency_match_flags = []
 
-            # lookup expected value
-            expected = EXPECTED_BALANCES.get(account, {}).get(key)
+        # First pass: determine if any currency matches expected
+        for year in years:
+            for currency in currencies:
+                key = f"{year}-{currency}"
+                actual = all_balances[account].get(key, 0.0)
+                expected = EXPECTED_BALANCES.get(account, {}).get(key)
+                match = expected is not None and abs(actual - expected) < 0.01
+                currency_match_flags.append(match)
 
-            if expected is None:
-                cell.fill = WHITE
-            elif abs(actual - expected) < 0.01:
-                cell.fill = GREEN
-            else:
-                cell.fill = RED
+        year_match = any(currency_match_flags)
+
+        # Second pass: fill values and apply colors
+        for year in years:
+            for currency in currencies:
+                key = f"{year}-{currency}"
+                actual = all_balances[account].get(key, 0.0)
+                cell = ws.cell(row=row_idx, column=col, value=actual)
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+                expected = EXPECTED_BALANCES.get(account, {}).get(key)
+                if year_match:
+                    cell.fill = GREEN
+                elif expected is not None:
+                    cell.fill = RED
+                else:
+                    cell.fill = WHITE
+
+                col += 1
+
+        row_idx += 1
 
     wb.save(output_xlsx)
 
