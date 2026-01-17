@@ -1,4 +1,4 @@
-import json
+import csv
 import subprocess
 from pathlib import Path
 from typing import Dict, List
@@ -15,8 +15,19 @@ from src.data.config import (
     PORTFOLIO_RECON_REPORT,
 )
 
+
+EXPECTED_BALANCES: Dict[str, Dict[str, float]] = {}
 with open(PORTFOLIO_EXPECTED_BALANCES, "r", encoding="utf-8") as f:
-    EXPECTED_BALANCES: Dict[str, Dict[str, float]] = json.load(f)
+    filtered_lines = (
+        line for line in f
+        if line.strip() and not line.lstrip().startswith("#")
+    )
+    reader = csv.DictReader(filtered_lines)
+    for row in reader:
+        account = row["Account"].strip()
+        period = row["Period"].strip()
+        expected = float(row["Expected"])
+        EXPECTED_BALANCES.setdefault(account, {})[period] = expected
 
 
 def run_ledger_for_year_currency(
@@ -174,9 +185,9 @@ def generate_reconciled_xlsx(
         row_idx = ws.max_row
         for col_idx, key in enumerate(headers[1:], start=2):
             cell = ws.cell(row=row_idx, column=col_idx)
-            actual = cell.value
+            actual = float(cell.value or 0)
 
-            # <<< NEW: lookup expected value
+            # lookup expected value
             expected = EXPECTED_BALANCES.get(account, {}).get(key)
 
             if expected is None:

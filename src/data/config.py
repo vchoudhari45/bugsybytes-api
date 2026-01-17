@@ -42,7 +42,7 @@ LEDGER_ACCOUNT_LIST = BASE_DIR / "portfolio/common/accounts.db"
 
 # Portfolio Report
 PORTFOLIO_RECON_REPORT = BASE_DIR / "portfolio/portfolio_recon_report.xlsx"
-PORTFOLIO_EXPECTED_BALANCES = BASE_DIR / "portfolio/expected_balances.json"
+PORTFOLIO_EXPECTED_BALANCES = BASE_DIR / "portfolio/expected_balances.csv"
 
 # Terminal Codes
 RED_BOLD = "\033[1;91m"
