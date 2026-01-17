@@ -202,7 +202,9 @@ def generate_reconciled_xlsx(
                 key = f"{year}-{currency}"
                 actual = all_balances[account].get(key, 0.0)
                 expected = EXPECTED_BALANCES.get(account, {}).get(key)
-                match = expected is not None and abs(actual - expected) < 0.01
+                match = (
+                    expected is not None and abs(float(actual) - float(expected)) < 0.01
+                )
                 currency_match_flags.append(match)
 
         year_match = any(currency_match_flags)
