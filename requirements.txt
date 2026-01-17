@@ -39,3 +39,6 @@ holidays
 
 # yfinance
 yfinance
+
+# openpyxl
+openpyxl

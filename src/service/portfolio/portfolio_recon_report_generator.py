@@ -1,15 +1,22 @@
-import csv
+import json
 import subprocess
 from pathlib import Path
-from typing import List
+from typing import Dict, List
+
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill
 
 from src.data.config import (
     LEDGER_ACCOUNT_LIST,
     LEDGER_ME_MAIN,
     LEDGER_MOM_MAIN,
     LEDGER_PAPA_MAIN,
-    PORTFOLIO_REPORT,
+    PORTFOLIO_EXPECTED_BALANCES,
+    PORTFOLIO_RECON_REPORT,
 )
+
+with open(PORTFOLIO_EXPECTED_BALANCES, "r", encoding="utf-8") as f:
+    EXPECTED_BALANCES: Dict[str, Dict[str, float]] = json.load(f)
 
 
 def run_ledger_for_year_currency(
@@ -38,8 +45,8 @@ def run_ledger_for_year_currency(
 
     # Debug print
     print(
-        f"Running ledger balance for year={year}, currency={currency}\n"
-        f"Command: {' '.join(cmd)}\n"
+        f"Running ledger balance for year={year}, currency={currency}"
+        # f"\nCommand: {' '.join(cmd)}\n"
     )
 
     # Run ledger
@@ -72,7 +79,7 @@ def run_ledger_for_year_currency(
             continue
 
         currency = arr_filtered[0]
-        amount = arr_filtered[1]
+        amount = float(arr_filtered[1].replace(",", ""))
         account_name = arr_filtered[-1]
 
         # number of empty strings
@@ -98,9 +105,9 @@ def run_ledger_for_year_currency(
     return balances
 
 
-def generate_merged_csv(
+def generate_reconciled_xlsx(
     account_list_file: Path,
-    output_csv: Path,
+    output_xlsx: Path,
     years: List[int],
     currencies: List[str],
     ledger_files: List[Path],
@@ -118,7 +125,7 @@ def generate_merged_csv(
     accounts = sorted(accounts)
 
     # all_balances[account][year-currency] = amount
-    all_balances = {acct: {} for acct in accounts}
+    all_balances: Dict[str, Dict[str, float]] = {acct: {} for acct in accounts}
 
     for currency in currencies:
         for year in years:
@@ -128,24 +135,58 @@ def generate_merged_csv(
                 all_balances[account][f"{year}-{currency}"] = balance
 
     # Prepare CSV headers
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Portfolio"
+
+    GREEN = PatternFill(
+        fill_type="solid",
+        start_color="C6EFCE",
+        end_color="C6EFCE",
+    )
+
+    RED = PatternFill(
+        fill_type="solid",
+        start_color="FFC7CE",
+        end_color="FFC7CE",
+    )
+
+    WHITE = PatternFill(
+        fill_type="solid",
+        start_color="FFFFFF",
+        end_color="FFFFFF",
+    )
+
+    # Write CSV
     headers = ["Account"]
     for currency in currencies:
         for year in years:
             headers.append(f"{year}-{currency}")
 
-    # Write CSV
-    with open(output_csv, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(headers)
+    ws.append(headers)
 
-        for account in accounts:
-            row = [account]
-            for currency in currencies:
-                for year in years:
-                    account = account
-                    balance = all_balances[account].get(f"{year}-{currency}", "0")
-                    row.append(balance)
-            writer.writerow(row)
+    for account in accounts:
+        row = [account]
+        for key in headers[1:]:
+            row.append(all_balances[account].get(key, 0.0))
+        ws.append(row)
+
+        row_idx = ws.max_row
+        for col_idx, key in enumerate(headers[1:], start=2):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            actual = cell.value
+
+            # <<< NEW: lookup expected value
+            expected = EXPECTED_BALANCES.get(account, {}).get(key)
+
+            if expected is None:
+                cell.fill = WHITE
+            elif abs(actual - expected) < 0.01:
+                cell.fill = GREEN
+            else:
+                cell.fill = RED
+
+    wb.save(output_xlsx)
 
 
 if __name__ == "__main__":
@@ -161,12 +202,12 @@ if __name__ == "__main__":
     years = list(range(2020, 2027))
     currencies = ["INR", "USD"]
 
-    generate_merged_csv(
+    generate_reconciled_xlsx(
         account_list_file=LEDGER_ACCOUNT_LIST,
-        output_csv=PORTFOLIO_REPORT,
+        output_xlsx=PORTFOLIO_RECON_REPORT,
         years=years,
         currencies=currencies,
         ledger_files=ledger_files,
     )
 
-    print(f"CSV generated: {PORTFOLIO_REPORT}")
+    print("✅ Reconciled XLSX generated successfully")

@@ -59,7 +59,7 @@ python -m src.service.portfolio.price_db_writer
 python -m src.service.portfolio.ledger_entry_generator
 
 # Ledger Report Generator
-python -m src.service.portfolio.ledger_report_generator
+python -m src.service.portfolio.portfolio_recon_report_generator
 ```
 
 Run tox to lint code, execute pytest tests, and generate/validate tests with schemathesis
