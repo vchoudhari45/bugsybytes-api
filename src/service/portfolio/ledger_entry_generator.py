@@ -27,11 +27,19 @@ def csv_to_ledger(csv_file, output_file):
                 continue
 
             parts = row.split(",")
-            if len(parts) != 6:
+            if len(parts) != 7:
                 print(f"Malformed row: {row}", file=sys.stderr)
                 sys.exit(1)
 
-            date, description, from_account, from_value, to_account, to_value = parts
+            (
+                date,
+                description,
+                from_account,
+                from_value,
+                to_account,
+                to_value,
+                adjustment_account,
+            ) = parts
 
             # Ledger-cli first line: date + description
             lines.append(f"{date} {description}".rstrip())
@@ -40,6 +48,9 @@ def csv_to_ledger(csv_file, output_file):
             lines.append(f"    {from_account:<50}{from_value}")
             lines.append(f"    {to_account:<50}{to_value}")
 
+            # if adjustment_account exists add third entry
+            if adjustment_account and adjustment_account.strip():
+                lines.append(f"    {adjustment_account}")
             # Empty line between transactions
             lines.append("")
 
