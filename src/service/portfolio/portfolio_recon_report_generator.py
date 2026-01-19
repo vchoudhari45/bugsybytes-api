@@ -8,6 +8,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 
 from src.data.config import (
     LEDGER_ACCOUNT_LIST,
+    LEDGER_GSEC_ACCOUNT_LIST,
     LEDGER_ME_MAIN,
     LEDGER_MOM_MAIN,
     LEDGER_PAPA_MAIN,
@@ -27,6 +28,25 @@ with open(PORTFOLIO_EXPECTED_BALANCES, "r", encoding="utf-8") as f:
         # print(f"Expected value for account: {account} and period: {period} is: {row["Expected"]}")
         expected = float(row["Expected"])
         EXPECTED_BALANCES.setdefault(account, {})[period] = expected
+
+
+def read_account_list(account_files: List[Path]) -> List[str]:
+    """
+    Read multiple ledger account list files and return a sorted unique account list.
+    """
+    accounts: set[str] = set()
+
+    for account_file in account_files:
+        with open(account_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith(("#", ";")):
+                    continue
+                if line.startswith("account"):
+                    line = line.replace("account", "").strip()
+                accounts.add(line)
+
+    return sorted(accounts)
 
 
 def run_ledger_for_year_currency(
@@ -124,7 +144,7 @@ def is_cumulative_account(account: str) -> bool:
 
 
 def generate_reconciled_xlsx(
-    account_list_file: Path,
+    account_list_file: List[Path],
     output_xlsx: Path,
     years: List[int],
     currencies: List[str],
@@ -134,13 +154,7 @@ def generate_reconciled_xlsx(
     Generate CSV with accounts as rows, years/currencies as columns.
     Runs only one ledger CLI call per year per currency.
     """
-    with open(account_list_file, "r", encoding="utf-8") as f:
-        accounts = [
-            line.replace("account", "").strip()
-            for line in f
-            if line.strip() and not line.startswith("#") and not line.startswith(";")
-        ]
-    accounts = sorted(accounts)
+    accounts = read_account_list(account_list_file)
 
     # all_balances[account][year-currency] = amount
     all_balances: Dict[str, Dict[str, float]] = {acct: {} for acct in accounts}
@@ -271,7 +285,10 @@ if __name__ == "__main__":
     currencies = ["INR", "USD"]
 
     generate_reconciled_xlsx(
-        account_list_file=LEDGER_ACCOUNT_LIST,
+        account_list_file=[
+            LEDGER_ACCOUNT_LIST,
+            LEDGER_GSEC_ACCOUNT_LIST,
+        ],
         output_xlsx=PORTFOLIO_RECON_REPORT,
         years=years,
         currencies=currencies,
