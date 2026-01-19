@@ -120,7 +120,7 @@ def process_nse_nifty_50_file():
     pd.set_option("display.max_colwidth", None)
 
     # Read lot order data
-    nifty_50_holdings = pd.read_csv(NSE_NIFTY50_UPSTOX_HOLDINGS_FILE)
+    nifty_50_holdings = pd.read_csv(NSE_NIFTY50_UPSTOX_HOLDINGS_FILE, sep="\t")
 
     # Normalize SYMBOL column
     nifty_50_holdings.columns = [

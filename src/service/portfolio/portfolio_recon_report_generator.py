@@ -29,15 +29,15 @@ with open(PORTFOLIO_EXPECTED_BALANCES, "r", encoding="utf-8") as f:
 
 
 def run_ledger_for_year_currency(
-    year: int,
     currency: str,
     ledger_files: list,
-) -> dict:
+    begin: str | None,
+    end: str,
+) -> Dict[str, float]:
     """
     Run one ledger balance command for ALL accounts for a given year & currency.
     Parses the default ledger output (no --format needed).
     """
-    end_date = f"{year + 1}-01-01"
 
     cmd = [
         "ledger",
@@ -46,16 +46,20 @@ def run_ledger_for_year_currency(
         currency,
         "--strict",
         "-e",
-        end_date,
+        end,
     ]
+
+    if begin:
+        cmd.extend(["-b", begin])
 
     for lf in ledger_files:
         cmd.extend(["-f", str(lf)])
 
     # Debug print
     print(
-        f"Running ledger balance for year={year}, currency={currency}"
-        # f"\nCommand: {' '.join(cmd)}\n"
+        f"Running ledger balance for currency={currency} "
+        f"from begin={begin or 'BEGINNING'} "
+        f"to end={end}"
     )
 
     # Run ledger
@@ -114,6 +118,10 @@ def run_ledger_for_year_currency(
     return balances
 
 
+def is_cumulative_account(account: str) -> bool:
+    return account.startswith(("Assets", "Liabilities"))
+
+
 def generate_reconciled_xlsx(
     account_list_file: Path,
     output_xlsx: Path,
@@ -138,10 +146,27 @@ def generate_reconciled_xlsx(
 
     for currency in currencies:
         for year in years:
-            balances = run_ledger_for_year_currency(year, currency, ledger_files)
+            end = f"{year + 1}-01-01"
+
+            cumulative_balances = run_ledger_for_year_currency(
+                currency=currency,
+                ledger_files=ledger_files,
+                begin=None,
+                end=end,
+            )
+            yearly_balances = run_ledger_for_year_currency(
+                currency=currency,
+                ledger_files=ledger_files,
+                begin=f"{year}-01-01",
+                end=end,
+            )
             for account in accounts:
-                balance = balances.get(f"{account}", "0")
-                all_balances[account][f"{year}-{currency}"] = balance
+                key = f"{year}-{currency}"
+                if is_cumulative_account(account):
+                    balance = cumulative_balances.get(account, 0.0)
+                else:
+                    balance = yearly_balances.get(account, 0.0)
+                all_balances[account][key] = balance
 
     # Prepare CSV headers
     wb = Workbook()
