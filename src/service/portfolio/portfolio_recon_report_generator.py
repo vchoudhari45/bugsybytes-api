@@ -24,6 +24,7 @@ with open(PORTFOLIO_EXPECTED_BALANCES, "r", encoding="utf-8") as f:
     for row in reader:
         account = row["Account"].strip()
         period = row["Period"].strip()
+        # print(f"Expected value for account: {account} and period: {period} is: {row["Expected"]}")
         expected = float(row["Expected"])
         EXPECTED_BALANCES.setdefault(account, {})[period] = expected
 
