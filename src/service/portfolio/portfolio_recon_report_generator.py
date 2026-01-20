@@ -193,7 +193,6 @@ def generate_reconciled_xlsx(
         start_color="C6EFCE",
         end_color="C6EFCE",
     )
-
     RED = PatternFill(
         fill_type="solid",
         start_color="FFC7CE",
@@ -211,7 +210,7 @@ def generate_reconciled_xlsx(
     )
     header_font = Font(color="FFFFFF", bold=True)
 
-    # Headers - Column 1
+    # Headers
     ws.cell(row=1, column=1, value="Accounts")
     ws.cell(row=1, column=1).alignment = Alignment(horizontal="left", vertical="center")
     ws.cell(row=1, column=1).fill = HEADER_BLUE
@@ -225,52 +224,43 @@ def generate_reconciled_xlsx(
             cell.fill = HEADER_BLUE
             cell.font = header_font
             col += 1
+    # End Headers
 
-    # Data rows
-    row_idx = 2
+    row = 2
     for account in accounts:
-        # Account name left-aligned
-        cell_account = ws.cell(row=row_idx, column=1, value=account)
-        cell_account.alignment = Alignment(horizontal="left", vertical="center")
+        ws.cell(row=row, column=1, value=account)
 
         col = 2
-        currency_match_flags = []
-
-        # First pass: determine if any currency matches expected
         for year in years:
+            color = WHITE
+            prev_col = col
+            # check if expected value is defined in any of the currencies
             for currency in currencies:
                 key = f"{year}-{currency}"
                 actual = all_balances[account].get(key, 0.0)
                 expected = EXPECTED_BALANCES.get(account, {}).get(key)
-                match = (
-                    expected is not None and abs(float(actual) - float(expected)) < 0.01
-                )
-                currency_match_flags.append(match)
-                if not match and expected is not None:
-                    print(
-                        f"Account: {account}, Year: {year}, Expected: {expected} != Actual: {actual}"
-                    )
 
-        year_match = any(currency_match_flags)
+                cell = ws.cell(row=row, column=col, value=actual)
+                cell.alignment = Alignment(horizontal="right")
 
-        # Second pass: fill values and apply colors
-        for year in years:
-            for currency in currencies:
-                key = f"{year}-{currency}"
-                actual = all_balances[account].get(key, 0.0)
-                cell = ws.cell(row=row_idx, column=col, value=actual)
-                cell.alignment = Alignment(horizontal="right", vertical="center")
-                expected = EXPECTED_BALANCES.get(account, {}).get(key)
-                if year_match:
-                    cell.fill = GREEN
-                elif expected is not None:
-                    cell.fill = RED
+                if expected is None:
+                    if color != GREEN:
+                        color = WHITE
+                elif abs(actual - expected) < 0.01:
+                    color = GREEN
                 else:
-                    cell.fill = WHITE
-
+                    if color != GREEN:
+                        color = RED
+                    print(
+                        f"Mismatch → {account} {key}: expected={expected}, actual={actual}"
+                    )
                 col += 1
 
-        row_idx += 1
+            # apply colors to all currencies in given year
+            for c in range(prev_col, col):
+                ws.cell(row=row, column=c).fill = color
+
+        row += 1
 
     wb.save(output_xlsx)
 
