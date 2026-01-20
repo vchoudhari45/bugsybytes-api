@@ -246,6 +246,10 @@ def generate_reconciled_xlsx(
                     expected is not None and abs(float(actual) - float(expected)) < 0.01
                 )
                 currency_match_flags.append(match)
+                if not match and expected is not None:
+                    print(
+                        f"Account: {account}, Year: {year}, Expected: {expected} != Actual: {actual}"
+                    )
 
         year_match = any(currency_match_flags)
 
