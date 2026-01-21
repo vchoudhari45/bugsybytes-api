@@ -13,7 +13,7 @@ from src.data.config import (
 def csv_to_ledger(csv_file, output_file):
     """
     Read pipe-separated CSV in format:
-    DATE(YYYY-MM-DD)|TRANSACTION_REMARK|FROM_ACCOUNT|FROM_VALUE|TO_ACCOUNT|TO_VALUE
+    DATE(YYYY-MM-DD),TRANSACTION_REMARK,FROM_ACCOUNT,FROM_VALUE,TO_ACCOUNT,TO_VALUE,ADJUSTMENT_ACCOUNT,ADJUSTMENT_VALUE
     and convert to ledger-cli format.
     """
     lines = []
@@ -23,7 +23,7 @@ def csv_to_ledger(csv_file, output_file):
 
         for row in f:
             row = row.strip()
-            if not row:
+            if not row or row.startswith("#"):
                 continue
 
             parts = row.split(",")
