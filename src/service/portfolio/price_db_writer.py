@@ -1,5 +1,7 @@
 import sys
+
 import yfinance as yf
+
 from src.data.config import LEDGER_PRICE_DB_DIR, RED_BOLD, RESET
 
 
@@ -110,8 +112,6 @@ def write_prices_for_year(instruments, year):
 if __name__ == "__main__":
     instruments = [
         ("USDINR=X", "USD", "INR"),
-        ("VINIX", "VINIX", "INR"),
-        ("VINIX", "VINIX", "INR"),
     ]
     write_prices_for_year(instruments, year=2020)
     write_prices_for_year(instruments, year=2021)
