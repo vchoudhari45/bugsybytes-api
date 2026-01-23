@@ -54,7 +54,7 @@ def csv_to_ledger(csv_file, output_file):
                 if adjustment_value and adjustment_value.strip():
                     lines.append(f"    {adjustment_account:<50}{adjustment_value}")
                 else:
-                    lines.append(f"    {adjustment_account:<50}")
+                    lines.append(f"    {adjustment_account}")
 
             # Empty line between transactions
             lines.append("")
