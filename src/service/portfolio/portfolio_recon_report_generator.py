@@ -8,7 +8,6 @@ from openpyxl.styles import Alignment, Font, PatternFill
 
 from src.data.config import (
     LEDGER_ACCOUNT_LIST,
-    LEDGER_GSEC_ACCOUNT_LIST,
     LEDGER_ME_MAIN,
     LEDGER_MOM_MAIN,
     LEDGER_PAPA_MAIN,
@@ -281,7 +280,6 @@ if __name__ == "__main__":
     generate_reconciled_xlsx(
         account_list_file=[
             LEDGER_ACCOUNT_LIST,
-            LEDGER_GSEC_ACCOUNT_LIST,
         ],
         output_xlsx=PORTFOLIO_RECON_REPORT,
         years=years,
