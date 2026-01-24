@@ -1,5 +1,6 @@
 import csv
 import subprocess
+import sys
 from pathlib import Path
 from typing import Dict, List
 
@@ -142,12 +143,26 @@ def is_cumulative_account(account: str) -> bool:
     return account.startswith(("Assets", "Liabilities"))
 
 
+def validate_zero_balance_accounts(
+    all_balances: Dict[str, Dict[str, float]],
+    zero_accounts: List[str],
+):
+    for account in zero_accounts:
+        for period, balance in all_balances.get(account, {}).items():
+            if abs(balance) > 0.0001:
+                print(
+                    f"Account {account} has non-zero balance " f"{balance} in {period}"
+                )
+                sys.exit(1)
+
+
 def generate_reconciled_xlsx(
     account_list_file: List[Path],
     output_xlsx: Path,
     years: List[int],
     currencies: List[str],
     ledger_files: List[Path],
+    validate_zero_balance_account: List[str],
 ):
     """
     Generate CSV with accounts as rows, years/currencies as columns.
@@ -181,6 +196,14 @@ def generate_reconciled_xlsx(
                 else:
                     balance = yearly_balances.get(account, 0.0)
                 all_balances[account][key] = balance
+
+    # validate zero balance accounts
+    validate_zero_balance_accounts(
+        all_balances,
+        validate_zero_balance_account,
+    )
+    # exclude validated accounts with zero balance
+    accounts = [a for a in accounts if a not in validate_zero_balance_account]
 
     # Prepare CSV headers
     wb = Workbook()
@@ -285,6 +308,11 @@ if __name__ == "__main__":
         years=years,
         currencies=currencies,
         ledger_files=ledger_files,
+        validate_zero_balance_account=[
+            "Assets:BankTransfers:Family",
+            "Assets:BankTransfers:Internal",
+            "Assets:Investments:BrokerageTransfer:Internal",
+        ],
     )
 
     print("✅ Reconciled XLSX generated successfully")
