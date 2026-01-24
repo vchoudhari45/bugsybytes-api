@@ -66,6 +66,40 @@ def fmt(value: Decimal) -> Decimal:
     return value.quantize(SIX_DP, rounding=ROUND_HALF_UP)
 
 
+def is_currency(unit: str) -> bool:
+    """
+    Check if a unit is a currency (not an equity/commodity).
+    Common currencies: USD, INR, EUR, GBP, JPY, etc.
+    Equities/Commodities: Stock symbols, mutual funds, etc.
+    """
+    COMMON_CURRENCIES = {
+        "USD",
+        "INR",
+        "EUR",
+        "GBP",
+        "JPY",
+        "CNY",
+        "AUD",
+        "CAD",
+        "CHF",
+        "SGD",
+        "HKD",
+        "NZD",
+        "SEK",
+        "NOK",
+        "DKK",
+        "KRW",
+        "MXN",
+        "BRL",
+        "ZAR",
+        "RUB",
+        "TRY",
+        "AED",
+        "SAR",
+    }
+    return unit.upper() in COMMON_CURRENCIES
+
+
 def is_equity_account(account: str) -> bool:
     """
     Any account containing investment instruments.
@@ -215,19 +249,32 @@ def csv_to_ledger_year_range(
             if is_equity_account(to_account):
                 qty = to_amt  # Shares bought
                 symbol = to_unit  # e.g., ACLS, INFY
-                total_cost = abs(from_amt)  # Cash paid
-                cost_per_unit = fmt(total_cost / qty)
 
-                # Push lot into FIFO queue
-                lots[(to_account, symbol)].append({"qty": qty, "cost": cost_per_unit})
+                # When from_unit == to_unit, it's a simple transfer (RSU grant, stock transfer, etc.)
+                # CANNOT use @ cost_basis with same commodity - ledger-cli will error
+                is_same_commodity_transfer = from_unit == to_unit
 
-                currency = from_value.split()[-1]
+                if is_same_commodity_transfer:
+                    lines.append(f'    {to_account:<50}{qty} "{symbol}"')
+                    lines.append(f'    {from_account:<50}-{abs(from_amt)} "{symbol}"')
+                    lots[(to_account, symbol)].append(
+                        {"qty": qty, "cost": Decimal("0")}
+                    )
+                else:
+                    total_cost = abs(from_amt)  # Cash paid
+                    cost_per_unit = fmt(total_cost / qty)
 
-                lines.append(f"    {from_account:<50}{fmt(from_amt)} {currency}")
-                lines.append(
-                    f'    {to_account:<50}{qty} "{symbol}" @ {cost_per_unit} {currency}'
-                )
+                    # Push lot into FIFO queue
+                    lots[(to_account, symbol)].append(
+                        {"qty": qty, "cost": cost_per_unit}
+                    )
 
+                    currency = from_value.split()[-1]
+
+                    lines.append(f"    {from_account:<50}{fmt(from_amt)} {currency}")
+                    lines.append(
+                        f'    {to_account:<50}{qty} "{symbol}" @ {cost_per_unit} {currency}'
+                    )
             # -------------------------
             # SELL Equity Transaction
             # Equity -> Cash
@@ -263,16 +310,21 @@ def csv_to_ledger_year_range(
                     lot = lots[lot_key][0]
                     take = min(lot["qty"], remaining)
 
-                    # Ledger posting for this lot
-                    # - Equity decreases
-                    # - Original cost preserved {}
-                    # - Sale price applied @
-                    lines.append(
-                        f"    {from_account:<50}-"
-                        f'{take} "{symbol}" '
-                        f"{{{lot['cost']} {currency}}} "
-                        f"@ {sell_price} {currency}"
-                    )
+                    is_selling_to_currency = is_currency(currency)
+
+                    if lot["cost"] == 0 and is_selling_to_currency:
+                        lines.append(
+                            f"    {from_account:<50}-"
+                            f'{take} "{symbol}" '
+                            f"@ {sell_price} {currency}"
+                        )
+                    else:
+                        lines.append(
+                            f"    {from_account:<50}-"
+                            f'{take} "{symbol}" '
+                            f"{{{lot['cost']} {currency}}} "
+                            f"@ {sell_price} {currency}"
+                        )
 
                     lot["qty"] -= take
                     remaining -= take
@@ -282,16 +334,18 @@ def csv_to_ledger_year_range(
 
                 # Cash received
                 lines.append(f"    {to_account:<50}{fmt(proceeds)} {currency}")
-
-                # Capital gains (implicit balancing)
-                if adjustment_account:
-                    lines.append(f"    {adjustment_account}")
-
             # Non-Equity Transactions
             else:
                 lines.append(f"    {from_account:<50}{from_value}")
                 lines.append(f"    {to_account:<50}{to_value}")
-                if adjustment_account:
+
+            # append adjustment posting
+            if adjustment_account:
+                if adjustment_value:
+                    # explicit posting: account + amount
+                    lines.append(f"    {adjustment_account:<50}{adjustment_value}")
+                else:
+                    # implicit balancing posting: account only
                     lines.append(f"    {adjustment_account}")
 
             # Blank line between transactions
