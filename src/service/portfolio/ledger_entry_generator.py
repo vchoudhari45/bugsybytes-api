@@ -13,8 +13,8 @@ from src.data.config import (
     TRANSACTION_PAPA_DIR,
 )
 
-# Round to exactly 4 decimal places
-FOUR_DP = Decimal("0.0001")
+# Round to exactly 6 decimal places
+SIX_DP = Decimal("0.000001")
 
 
 def transaction_sort_key(row_parts):
@@ -58,19 +58,12 @@ def transaction_sort_key(row_parts):
     return (date, priority)
 
 
-def d(value: str) -> Decimal:
-    """
-    Convert string to Decimal.
-    """
-    return Decimal(value)
-
-
 def fmt(value: Decimal) -> Decimal:
     """
-    Force 4 decimal places everywhere.
+    Force 6 decimal places everywhere.
     This prevents lot mismatches later.
     """
-    return value.quantize(FOUR_DP, rounding=ROUND_HALF_UP)
+    return value.quantize(SIX_DP, rounding=ROUND_HALF_UP)
 
 
 def is_equity_account(account: str) -> bool:
