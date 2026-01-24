@@ -17,6 +17,47 @@ from src.data.config import (
 FOUR_DP = Decimal("0.0001")
 
 
+def transaction_sort_key(row_parts):
+    """
+    Sorting key for CSV rows.
+
+    Primary sort:
+        - date (YYYY-MM-DD)
+
+    Secondary sort (same date):
+        - BUY equity first
+        - SELL equity next
+        - Non-equity last
+
+    This guarantees FIFO correctness.
+    """
+
+    (
+        date,
+        description,
+        from_account,
+        from_value,
+        to_account,
+        to_value,
+        adjustment_account,
+        adjustment_value,
+    ) = row_parts
+
+    # BUY: Equity goes TO an equity account
+    if is_equity_account(to_account):
+        priority = 0
+
+    # SELL: Equity comes FROM an equity account
+    elif is_equity_account(from_account):
+        priority = 1
+
+    # Non-equity
+    else:
+        priority = 2
+
+    return (date, priority)
+
+
 def d(value: str) -> Decimal:
     """
     Convert string to Decimal.
@@ -41,20 +82,19 @@ def is_equity_account(account: str) -> bool:
       - :MutualFunds:
       - :Options:
       - :GSec:
-
-    Examples:
-      Assets:Investments:Equity:Etrade:XXXX        -> True
-      Assets:Investments:MutualFunds:Etrade:XXXX   -> True
-      Assets:Investments:Options:Etrade:XXXX       -> True
-      Assets:Investments:GSec:Zerodha:XXXX         -> True
-      Assets:Investments:Cash:Etrade:XXXX          -> False
     """
     INVESTMENT_MARKERS = (
-        ":Equity:",
-        ":MutualFunds:",
-        ":Options:",
-        ":GSec:",
+        "Assets:Investments:Equity:",
+        "Assets:Investments:MutualFunds:",
+        "Assets:Investments:Options:",
+        "Assets:Investments:GSec:",
     )
+    EXCLUDE_ACCOUNTS = {
+        "Assets:Investments:MutualFunds:ICICI",
+    }
+
+    if account in EXCLUDE_ACCOUNTS:
+        return False
 
     return any(marker in account for marker in INVESTMENT_MARKERS)
 
@@ -79,7 +119,6 @@ def parse_amount(value: str):
             -> (1, "AAPL 2023-10-23 Call 195.00")
     """
     value = value.strip()
-
     # Split only ONCE: amount | rest
     amount_str, unit_part = value.split(None, 1)
 
@@ -103,19 +142,18 @@ def csv_to_ledger_year_range(
     Converts CSV files into Ledger files for a range of years.
     One ledger file per year.
     FIFO lot accounting per (equity_account, symbol).
+    Rows are sorted by date and BUY before SELL on the same date.
+
+    Args:
+        transaction_dir: directory containing CSVs (one per year)
+        ledger_dir: directory to write Ledger files
+        start_year: first year to process
+        end_year: last year to process
     """
 
-    # FIFO LOT STORAGE
-    #
-    # Key   = (equity_account, symbol)
-    # Value = deque of lots
-    #
-    # Each lot:
-    #   {
-    #       "qty": Decimal,
-    #       "cost": Decimal (cost per unit)
-    #   }
-    #
+    # FIFO lot storage
+    # Key: (equity_account, symbol)
+    # Value: deque of lots, each lot is a dict: {"qty": Decimal, "cost": Decimal}
     lots = defaultdict(deque)
 
     for year in range(start_year, end_year + 1):
@@ -128,8 +166,11 @@ def csv_to_ledger_year_range(
             )
             sys.exit(1)
 
-        lines = []
+        rows = []
 
+        # -------------------------
+        # Read CSV and store rows
+        # -------------------------
         with open(csv_path, "r", encoding="utf-8") as f:
             next(f, None)  # skip CSV header
 
@@ -142,107 +183,137 @@ def csv_to_ledger_year_range(
                 if len(parts) != 8:
                     raise RuntimeError(f"Malformed row: {row}")
 
-                (
-                    date,
-                    description,
-                    from_account,
-                    from_value,
-                    to_account,
-                    to_value,
-                    adjustment_account,
-                    adjustment_value,
-                ) = parts
+                rows.append(parts)
 
-                # Ledger transaction header
-                lines.append(f"{date} {description}")
+        # -------------------------
+        # Sort rows by:
+        #   1. date ascending
+        #   2. BUY first, SELL second, Non-equity last
+        # -------------------------
+        rows.sort(key=transaction_sort_key)
 
-                from_amt, from_unit = parse_amount(from_value)
-                to_amt, to_unit = parse_amount(to_value)
+        lines = []
 
-                # Buy Equity Transaction
-                if is_equity_account(to_account):
-                    qty = to_amt  # Shares bought
-                    symbol = to_unit  # ACLS / INFY / etc.
-                    total_cost = abs(from_amt)  # Money paid
-                    cost_per_unit = fmt(total_cost / qty)
+        # -------------------------
+        # Process each row in sorted order
+        # -------------------------
+        for (
+            date,
+            description,
+            from_account,
+            from_value,
+            to_account,
+            to_value,
+            adjustment_account,
+            adjustment_value,
+        ) in rows:
 
-                    # Push lot into FIFO queue
-                    lots[(to_account, symbol)].append(
-                        {"qty": qty, "cost": cost_per_unit}
+            # Ledger transaction header
+            lines.append(f"{date} {description}")
+
+            # Parse amounts and units
+            from_amt, from_unit = parse_amount(from_value)
+            to_amt, to_unit = parse_amount(to_value)
+
+            # -------------------------
+            # BUY Equity Transaction
+            # Cash -> Equity
+            # -------------------------
+            if is_equity_account(to_account):
+                qty = to_amt  # Shares bought
+                symbol = to_unit  # e.g., ACLS, INFY
+                total_cost = abs(from_amt)  # Cash paid
+                cost_per_unit = fmt(total_cost / qty)
+
+                # Push lot into FIFO queue
+                lots[(to_account, symbol)].append({"qty": qty, "cost": cost_per_unit})
+
+                currency = from_value.split()[-1]
+
+                lines.append(f"    {from_account:<50}{fmt(from_amt)} {currency}")
+                lines.append(
+                    f'    {to_account:<50}{qty} "{symbol}" @ {cost_per_unit} {currency}'
+                )
+
+            # -------------------------
+            # SELL Equity Transaction
+            # Equity -> Cash
+            # Consume FIFO lots
+            # -------------------------
+            elif is_equity_account(from_account):
+                sell_qty = abs(from_amt)
+                symbol = from_unit
+                proceeds = to_amt
+
+                currency = to_value.split()[-1]
+                sell_price = fmt(abs(proceeds) / sell_qty)
+
+                lot_key = (from_account, symbol)
+
+                if lot_key not in lots:
+                    print(
+                        f"Selling without inventory: {from_account} {symbol} on date: {date}"
                     )
+                    sys.exit(1)
 
-                    currency = from_value.split()[-1]
+                # Tracks how many shares still need to be sold
+                remaining = sell_qty
 
-                    lines.append(f"    {from_account:<50}{fmt(from_amt)} {currency}")
-                    lines.append(
-                        f"    {to_account:<50}{qty} {symbol} @ {cost_per_unit} {currency}"
-                    )
-                # Sell Equity Transaction
-                # FIFO lots are popped until sell quantity is satisfied.
-                elif is_equity_account(from_account):
-                    sell_qty = abs(from_amt)
-                    symbol = from_unit
-                    proceeds = to_amt
-
-                    currency = to_value.split()[-1]
-                    sell_price = fmt(abs(proceeds) / sell_qty)
-
-                    lot_key = (from_account, symbol)
-
-                    if lot_key not in lots:
-                        print(f"Selling without inventory: {from_account} {symbol}")
+                while remaining > 0:
+                    if not lots[lot_key]:
+                        print(
+                            f" Not enough shares to sell "
+                            f"{sell_qty} {symbol} from {from_account}"
+                        )
                         sys.exit(1)
 
-                    # Starts equal to requested sell quantity
-                    remaining = sell_qty
-                    while remaining > 0:
-                        if not lots[lot_key]:
-                            print(
-                                f" Not enough shares to sell "
-                                f"{sell_qty} {symbol} from {from_account}"
-                            )
-                            sys.exit(1)
+                    lot = lots[lot_key][0]
+                    take = min(lot["qty"], remaining)
 
-                        lot = lots[lot_key][0]
-                        take = min(lot["qty"], remaining)
+                    # Ledger posting for this lot
+                    # - Equity decreases
+                    # - Original cost preserved {}
+                    # - Sale price applied @
+                    lines.append(
+                        f"    {from_account:<50}-"
+                        f'{take} "{symbol}" '
+                        f"{{{lot['cost']} {currency}}} "
+                        f"@ {sell_price} {currency}"
+                    )
 
-                        # Ledger posting for this lot
-                        lines.append(
-                            f"    {from_account:<50}-"
-                            f"{take} {symbol} "
-                            f"{{{lot['cost']} {currency}}} "
-                            f"@ {sell_price} {currency}"
-                        )
+                    lot["qty"] -= take
+                    remaining -= take
 
-                        lot["qty"] -= take
-                        remaining -= take
+                    if lot["qty"] == 0:
+                        lots[lot_key].popleft()
 
-                        if lot["qty"] == 0:
-                            lots[lot_key].popleft()
+                # Cash received
+                lines.append(f"    {to_account:<50}{fmt(proceeds)} {currency}")
 
-                    lines.append(f"    {to_account:<50}{fmt(proceeds)} {currency}")
+                # Capital gains (implicit balancing)
+                if adjustment_account:
+                    lines.append(f"    {adjustment_account}")
 
-                    # Capital gains (implicit balancing)
-                    if adjustment_account:
-                        lines.append(f"    {adjustment_account}")
+            # Non-Equity Transactions
+            else:
+                lines.append(f"    {from_account:<50}{from_value}")
+                lines.append(f"    {to_account:<50}{to_value}")
+                if adjustment_account:
+                    lines.append(f"    {adjustment_account}")
 
-                # Non Equity Transactions
-                else:
-                    lines.append(f"    {from_account:<50}{from_value}")
-                    lines.append(f"    {to_account:<50}{to_value}")
-                    if adjustment_account:
-                        lines.append(f"    {adjustment_account}")
+            # Blank line between transactions
+            lines.append("")
 
-                lines.append("")
-
+        # Remove last empty line
         if lines and lines[-1] == "":
             lines.pop()
 
+        # Write ledger file
         with open(ledger_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
 
 
-# ENTRY POINT
+# Entry Point
 if __name__ == "__main__":
     try:
         csv_to_ledger_year_range(
