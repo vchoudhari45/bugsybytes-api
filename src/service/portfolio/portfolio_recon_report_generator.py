@@ -101,7 +101,7 @@ def run_ledger_for_year_currency(
         line = line.strip()
         if not line.strip():
             continue
-        if line.strip().startswith("-") or line.strip() == "0":
+        if line.strip().startswith("-") or line.strip().startswith("0"):
             continue
 
         arr = line.split(" ")
@@ -117,7 +117,7 @@ def run_ledger_for_year_currency(
         account_name = arr_filtered[-1]
 
         # number of empty strings
-        level = len(arr) - 2 - (len(arr_filtered) - 1)
+        level = max(0, len(arr) - 2 - (len(arr_filtered) - 1))
         # there are two spaces per level in ledger-cli output
         level = level // 2
         # print(f"{level}: {arr}")

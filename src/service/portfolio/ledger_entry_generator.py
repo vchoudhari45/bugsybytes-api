@@ -66,40 +66,6 @@ def fmt(value: Decimal) -> Decimal:
     return value.quantize(SIX_DP, rounding=ROUND_HALF_UP)
 
 
-def is_currency(unit: str) -> bool:
-    """
-    Check if a unit is a currency (not an equity/commodity).
-    Common currencies: USD, INR, EUR, GBP, JPY, etc.
-    Equities/Commodities: Stock symbols, mutual funds, etc.
-    """
-    COMMON_CURRENCIES = {
-        "USD",
-        "INR",
-        "EUR",
-        "GBP",
-        "JPY",
-        "CNY",
-        "AUD",
-        "CAD",
-        "CHF",
-        "SGD",
-        "HKD",
-        "NZD",
-        "SEK",
-        "NOK",
-        "DKK",
-        "KRW",
-        "MXN",
-        "BRL",
-        "ZAR",
-        "RUB",
-        "TRY",
-        "AED",
-        "SAR",
-    }
-    return unit.upper() in COMMON_CURRENCIES
-
-
 def is_equity_account(account: str) -> bool:
     """
     Any account containing investment instruments.
@@ -249,32 +215,17 @@ def csv_to_ledger_year_range(
             if is_equity_account(to_account):
                 qty = to_amt  # Shares bought
                 symbol = to_unit  # e.g., ACLS, INFY
+                total_cost = abs(from_amt)  # Cash paid
+                cost_per_unit = fmt(total_cost / qty)
 
-                # When from_unit == to_unit, it's a simple transfer (RSU grant, stock transfer, etc.)
-                # CANNOT use @ cost_basis with same commodity - ledger-cli will error
-                is_same_commodity_transfer = from_unit == to_unit
+                # Push lot into FIFO queue
+                lots[(to_account, symbol)].append({"qty": qty, "cost": cost_per_unit})
+                currency = from_value.split()[-1]
 
-                if is_same_commodity_transfer:
-                    lines.append(f'    {to_account:<50}{qty} "{symbol}"')
-                    lines.append(f'    {from_account:<50}-{abs(from_amt)} "{symbol}"')
-                    lots[(to_account, symbol)].append(
-                        {"qty": qty, "cost": Decimal("0")}
-                    )
-                else:
-                    total_cost = abs(from_amt)  # Cash paid
-                    cost_per_unit = fmt(total_cost / qty)
-
-                    # Push lot into FIFO queue
-                    lots[(to_account, symbol)].append(
-                        {"qty": qty, "cost": cost_per_unit}
-                    )
-
-                    currency = from_value.split()[-1]
-
-                    lines.append(f"    {from_account:<50}{fmt(from_amt)} {currency}")
-                    lines.append(
-                        f'    {to_account:<50}{qty} "{symbol}" @ {cost_per_unit} {currency}'
-                    )
+                lines.append(f"    {from_account:<50}{fmt(from_amt)} {currency}")
+                lines.append(
+                    f'    {to_account:<50}{qty} "{symbol}" @ {cost_per_unit} {currency}'
+                )
             # -------------------------
             # SELL Equity Transaction
             # Equity -> Cash
@@ -284,51 +235,33 @@ def csv_to_ledger_year_range(
                 sell_qty = abs(from_amt)
                 symbol = from_unit
                 proceeds = to_amt
-
                 currency = to_value.split()[-1]
                 sell_price = fmt(abs(proceeds) / sell_qty)
-
                 lot_key = (from_account, symbol)
 
-                if lot_key not in lots:
-                    print(
-                        f"Selling without inventory: {from_account} {symbol} on date: {date}"
-                    )
-                    sys.exit(1)
-
-                # Tracks how many shares still need to be sold
+                # sell quantity from deque until it is greater than 0
                 remaining = sell_qty
-
                 while remaining > 0:
                     if not lots[lot_key]:
                         print(
                             f" Not enough shares to sell "
-                            f"{sell_qty} {symbol} from {from_account}"
+                            f"{sell_qty} {symbol} from {from_account} on date: {date}"
                         )
                         sys.exit(1)
 
                     lot = lots[lot_key][0]
                     take = min(lot["qty"], remaining)
 
-                    is_selling_to_currency = is_currency(currency)
+                    lines.append(
+                        f"    {from_account:<50}-"
+                        f'{take} "{symbol}" '
+                        f"{{{lot['cost']} {currency}}} "
+                        f"@ {sell_price} {currency}"
+                    )
 
-                    if lot["cost"] == 0 and is_selling_to_currency:
-                        lines.append(
-                            f"    {from_account:<50}-"
-                            f'{take} "{symbol}" '
-                            f"@ {sell_price} {currency}"
-                        )
-                    else:
-                        lines.append(
-                            f"    {from_account:<50}-"
-                            f'{take} "{symbol}" '
-                            f"{{{lot['cost']} {currency}}} "
-                            f"@ {sell_price} {currency}"
-                        )
-
+                    # remove used quantity from deque
                     lot["qty"] -= take
                     remaining -= take
-
                     if lot["qty"] == 0:
                         lots[lot_key].popleft()
 
