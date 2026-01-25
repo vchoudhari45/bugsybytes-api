@@ -16,6 +16,15 @@ from src.data.config import (
     PORTFOLIO_RECON_REPORT,
 )
 
+
+ACCOUNT_TYPE_ORDER = {
+    "Assets": 0,
+    "Liabilities": 1,
+    "Income": 2,
+    "Expenses": 3,
+}
+
+
 EXPECTED_BALANCES: Dict[str, Dict[str, float]] = {}
 with open(PORTFOLIO_EXPECTED_BALANCES, "r", encoding="utf-8") as f:
     filtered_lines = (
@@ -32,7 +41,8 @@ with open(PORTFOLIO_EXPECTED_BALANCES, "r", encoding="utf-8") as f:
 
 def read_account_list(account_files: List[Path]) -> List[str]:
     """
-    Read multiple ledger account list files and return a sorted unique account list.
+    Sort order:
+    Assets → Liabilities → Income → Expenses
     """
     accounts: set[str] = set()
 
@@ -46,7 +56,13 @@ def read_account_list(account_files: List[Path]) -> List[str]:
                     line = line.replace("account", "").strip()
                 accounts.add(line)
 
-    return sorted(accounts)
+    return sorted(
+        accounts,
+        key=lambda acc: (
+            ACCOUNT_TYPE_ORDER.get(acc.split(":")[0], 99),
+            acc.split(":", 1)[1] if ":" in acc else "",
+        )
+    )
 
 
 def run_ledger_for_year_currency(
@@ -249,7 +265,14 @@ def generate_reconciled_xlsx(
     # End Headers
 
     row = 2
+    prev_type = None
     for account in accounts:
+        curr_type = account.split(":")[0]
+
+        if prev_type is not None and curr_type != prev_type:
+            row += 1
+
+
         ws.cell(row=row, column=1, value=account)
 
         col = 2
@@ -283,6 +306,7 @@ def generate_reconciled_xlsx(
                 ws.cell(row=row, column=c).fill = color
 
         row += 1
+        prev_type = curr_type
 
     wb.save(output_xlsx)
 
