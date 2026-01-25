@@ -135,7 +135,7 @@ def select_lot(lots_deque, method: str):
     if method == "LIFO":
         return lots_deque[-1]
     if method == "HIFO":
-        return max(lots_deque, key=lambda l: l["cost"])
+        return max(lots_deque, key=lambda lot: lot["cost"])
 
     raise ValueError(f"Unsupported lot selection method: {method}")
 
@@ -188,7 +188,7 @@ def csv_to_ledger_year_range(
                     continue
 
                 parts = row.split(",")
-                if len(parts) != 9: 
+                if len(parts) != 9:
                     raise RuntimeError(f"Malformed row: {row}")
 
                 rows.append(parts)
@@ -214,7 +214,7 @@ def csv_to_ledger_year_range(
             to_value,
             adjustment_account,
             adjustment_value,
-            lot_selection_method
+            lot_selection_method,
         ) in rows:
 
             # Ledger transaction header

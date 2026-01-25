@@ -39,6 +39,9 @@ LEDGER_PAPA_MAIN = BASE_DIR / "portfolio/ledger-papa/main.ledger"
 
 # Account
 LEDGER_ACCOUNT_LIST = BASE_DIR / "portfolio/common/accounts.db"
+LEDGER_ZERO_BALANCE_ACCOUNT_LIST = (
+    BASE_DIR / "portfolio/common/zero-balance-accounts.db"
+)
 
 # Portfolio Report
 PORTFOLIO_RECON_REPORT = BASE_DIR / "portfolio/portfolio_recon_report.xlsx"

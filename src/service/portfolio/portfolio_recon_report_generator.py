@@ -12,10 +12,10 @@ from src.data.config import (
     LEDGER_ME_MAIN,
     LEDGER_MOM_MAIN,
     LEDGER_PAPA_MAIN,
+    LEDGER_ZERO_BALANCE_ACCOUNT_LIST,
     PORTFOLIO_EXPECTED_BALANCES,
     PORTFOLIO_RECON_REPORT,
 )
-
 
 ACCOUNT_TYPE_ORDER = {
     "Assets": 0,
@@ -61,7 +61,7 @@ def read_account_list(account_files: List[Path]) -> List[str]:
         key=lambda acc: (
             ACCOUNT_TYPE_ORDER.get(acc.split(":")[0], 99),
             acc.split(":", 1)[1] if ":" in acc else "",
-        )
+        ),
     )
 
 
@@ -272,7 +272,6 @@ def generate_reconciled_xlsx(
         if prev_type is not None and curr_type != prev_type:
             row += 1
 
-
         ws.cell(row=row, column=1, value=account)
 
         col = 2
@@ -324,6 +323,9 @@ if __name__ == "__main__":
     years = list(range(2020, 2027))
     currencies = ["INR", "USD"]
 
+    with open(LEDGER_ZERO_BALANCE_ACCOUNT_LIST, "r", encoding="utf-8") as f:
+        zero_balance_account = [line.strip() for line in f if line.strip()]
+
     generate_reconciled_xlsx(
         account_list_file=[
             LEDGER_ACCOUNT_LIST,
@@ -332,11 +334,7 @@ if __name__ == "__main__":
         years=years,
         currencies=currencies,
         ledger_files=ledger_files,
-        validate_zero_balance_account=[
-            "Assets:BankTransfers:Family",
-            "Assets:BankTransfers:Internal",
-            "Assets:Investments:BrokerageTransfer:Internal",
-        ],
+        validate_zero_balance_account=zero_balance_account,
     )
 
     print("✅ Reconciled XLSX generated successfully")
