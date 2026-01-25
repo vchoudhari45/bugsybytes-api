@@ -28,8 +28,6 @@ def transaction_sort_key(row_parts):
         - BUY equity first
         - SELL equity next
         - Non-equity last
-
-    This guarantees FIFO correctness.
     """
 
     (
@@ -41,6 +39,7 @@ def transaction_sort_key(row_parts):
         to_value,
         adjustment_account,
         adjustment_value,
+        lot_selection_method,
     ) = row_parts
 
     # BUY: Equity goes TO an equity account
@@ -125,6 +124,22 @@ def parse_amount(value: str):
     return amount, unit_part
 
 
+def select_lot(lots_deque, method: str):
+    """
+    Select lot based on lot selection method.
+    """
+    method = (method or "FIFO").upper()
+
+    if method == "FIFO":
+        return lots_deque[0]
+    if method == "LIFO":
+        return lots_deque[-1]
+    if method == "HIFO":
+        return max(lots_deque, key=lambda l: l["cost"])
+
+    raise ValueError(f"Unsupported lot selection method: {method}")
+
+
 def csv_to_ledger_year_range(
     transaction_dir: str,
     ledger_dir: str,
@@ -173,7 +188,7 @@ def csv_to_ledger_year_range(
                     continue
 
                 parts = row.split(",")
-                if len(parts) != 8:
+                if len(parts) != 9: 
                     raise RuntimeError(f"Malformed row: {row}")
 
                 rows.append(parts)
@@ -199,6 +214,7 @@ def csv_to_ledger_year_range(
             to_value,
             adjustment_account,
             adjustment_value,
+            lot_selection_method
         ) in rows:
 
             # Ledger transaction header
@@ -249,7 +265,7 @@ def csv_to_ledger_year_range(
                         )
                         sys.exit(1)
 
-                    lot = lots[lot_key][0]
+                    lot = select_lot(lots[lot_key], lot_selection_method)
                     take = min(lot["qty"], remaining)
 
                     lines.append(
@@ -263,7 +279,7 @@ def csv_to_ledger_year_range(
                     lot["qty"] -= take
                     remaining -= take
                     if lot["qty"] == 0:
-                        lots[lot_key].popleft()
+                        lots[lot_key].remove(lot)
 
                 # Cash received
                 lines.append(f"    {to_account:<50}{fmt(proceeds)} {currency}")
