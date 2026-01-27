@@ -25,9 +25,9 @@ def transaction_sort_key(row_parts):
         - date (YYYY-MM-DD)
 
     Secondary sort (same date):
+        - Non-equity last
         - BUY equity first
         - SELL equity next
-        - Non-equity last
     """
 
     (
@@ -42,17 +42,18 @@ def transaction_sort_key(row_parts):
         lot_selection_method,
     ) = row_parts
 
+    #
     # BUY: Equity goes TO an equity account
     if is_equity_account(to_account):
-        priority = 0
+        priority = 1
 
     # SELL: Equity comes FROM an equity account
     elif is_equity_account(from_account):
-        priority = 1
+        priority = 2
 
     # Non-equity
     else:
-        priority = 2
+        priority = 0
 
     return (date, priority)
 
