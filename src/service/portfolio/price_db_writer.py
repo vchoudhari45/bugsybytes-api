@@ -112,6 +112,7 @@ def write_prices_for_year(instruments, year):
 if __name__ == "__main__":
     instruments = [
         ("USDINR=X", "USD", "INR"),
+        ("GOOG", "GOOG", "USD"),
     ]
     write_prices_for_year(instruments, year=2020)
     write_prices_for_year(instruments, year=2021)
