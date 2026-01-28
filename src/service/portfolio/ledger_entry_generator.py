@@ -239,9 +239,9 @@ def csv_to_ledger_year_range(
                 lots[(to_account, symbol)].append({"qty": qty, "cost": cost_per_unit})
                 currency = from_value.split()[-1]
 
-                lines.append(f"    {from_account:<50}{fmt(from_amt)} {currency}")
+                lines.append(f"    {from_account:<55}{fmt(from_amt)} {currency}")
                 lines.append(
-                    f'    {to_account:<50}{qty} "{symbol}" @ {cost_per_unit} {currency}'
+                    f'    {to_account:<55}{qty} "{symbol}" @ {cost_per_unit} {currency}'
                 )
             # -------------------------
             # SELL Equity Transaction
@@ -270,7 +270,7 @@ def csv_to_ledger_year_range(
                     take = min(lot["qty"], remaining)
 
                     lines.append(
-                        f"    {from_account:<50}-"
+                        f"    {from_account:<55}-"
                         f'{take} "{symbol}" '
                         f"{{{lot['cost']} {currency}}} "
                         f"@ {sell_price} {currency}"
@@ -283,17 +283,17 @@ def csv_to_ledger_year_range(
                         lots[lot_key].remove(lot)
 
                 # Cash received
-                lines.append(f"    {to_account:<50}{fmt(proceeds)} {currency}")
+                lines.append(f"    {to_account:<55}{fmt(proceeds)} {currency}")
             # Non-Equity Transactions
             else:
-                lines.append(f"    {from_account:<50}{from_value}")
-                lines.append(f"    {to_account:<50}{to_value}")
+                lines.append(f"    {from_account:<55}{from_value}")
+                lines.append(f"    {to_account:<55}{to_value}")
 
             # append adjustment posting
             if adjustment_account:
                 if adjustment_value:
                     # explicit posting: account + amount
-                    lines.append(f"    {adjustment_account:<50}{adjustment_value}")
+                    lines.append(f"    {adjustment_account:<55}{adjustment_value}")
                 else:
                     # implicit balancing posting: account only
                     lines.append(f"    {adjustment_account}")
