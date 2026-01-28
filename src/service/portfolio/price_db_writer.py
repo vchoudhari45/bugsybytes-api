@@ -68,7 +68,7 @@ def load_existing_price_commodities(price_file):
             if line.startswith("P "):
                 parts = line.split()
                 if len(parts) >= 3:
-                    existing.add(parts[2])
+                    existing.add(parts[2].replace('"', ""))
 
     return existing
 
@@ -201,19 +201,19 @@ def write_prices_for_year(year, us_commodities, ind_commodities):
     # ---------- US COMMODITIES ----------
     for commodity in us_commodities:
         if commodity in existing_commodities:
-            print(f"Skipping {commodity} (already present)")
+            # print(f"Skipping {commodity} (already present)")
             continue
 
         print(f"Fetching US commodity {commodity} for {year}")
         prices = fetch_us_price_history(commodity, year)
 
         for d, rate in sorted(prices.items()):
-            new_lines.append(f"P {d} {commodity} {rate:.4f} USD")
+            new_lines.append(f'P {d} "{commodity}" {rate:.4f} USD')
 
     # ---------- INDIAN COMMODITIES ----------
     for commodity in ind_commodities:
         if commodity in existing_commodities:
-            print(f"Skipping {commodity} (already present)")
+            # print(f"Skipping {commodity} (already present)")
             continue
 
         print(f"Fetching Indian commodity {commodity} for {year}")
@@ -222,7 +222,7 @@ def write_prices_for_year(year, us_commodities, ind_commodities):
         time.sleep(3)
 
         for d, rate in sorted(prices.items()):
-            new_lines.append(f"P {d} {commodity} {rate:.4f} INR")
+            new_lines.append(f'P {d} "{commodity}" {rate:.4f} INR')
 
     if not new_lines:
         print("No new prices to write.")
@@ -247,5 +247,5 @@ if __name__ == "__main__":
     us_commodities = read_commodity_file(LEDGER_US_COMMODITY_LIST)
     ind_commodities = read_commodity_file(LEDGER_IND_COMMODITY_LIST)
 
-    for year in range(2020, 2027):
+    for year in range(2026, 2027):
         write_prices_for_year(year, us_commodities, ind_commodities)
