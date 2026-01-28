@@ -288,8 +288,7 @@ def generate_reconciled_xlsx(
                 cell.alignment = Alignment(horizontal="right")
 
                 if expected is None:
-                    if color != GREEN:
-                        color = WHITE
+                    color = color
                 elif abs(actual - expected) < 0.01:
                     color = GREEN
                 else:
