@@ -134,8 +134,9 @@ def fetch_ind_price_history(symbol, year):
         sys.exit(1)
 
     headers = {
-        "Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}",
+        "Content-Type": "application/json",
         "Accept": "application/json",
+        "Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}",
     }
 
     start = f"{year}-01-01"
@@ -143,10 +144,9 @@ def fetch_ind_price_history(symbol, year):
 
     # Get instrument key (uses cache)
     instrument_key = get_instrument_key(symbol)
-
     url = (
-        f"https://api.upstox.com/v2/historical-candle/"
-        f"{instrument_key}/day/{end}/{start}"
+        f"https://api.upstox.com/v3/historical-candle/"
+        f"{instrument_key}/days/1/{end}/{start}"
     )
 
     resp = requests.get(url, headers=headers)

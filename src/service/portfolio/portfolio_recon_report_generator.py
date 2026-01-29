@@ -1,6 +1,7 @@
 import csv
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List
 
@@ -76,6 +77,10 @@ def run_ledger_for_year_currency(
     Parses the default ledger output (no --format needed).
     """
 
+    end_date = datetime.strptime(end, "%Y-%m-%d")
+    previous_date = end_date - timedelta(days=1)
+    previous_date_str = previous_date.strftime("%Y-%m-%d")
+
     cmd = [
         "ledger",
         "balance",
@@ -84,6 +89,9 @@ def run_ledger_for_year_currency(
         "--strict",
         "-e",
         end,
+        "--market",
+        "--now",
+        previous_date_str,
     ]
 
     if begin:
