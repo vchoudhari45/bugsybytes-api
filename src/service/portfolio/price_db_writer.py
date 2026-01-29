@@ -16,7 +16,7 @@ from src.data.config import (
 )
 
 UPSTOX_ACCESS_TOKEN = os.getenv("UPSTOX_ACCESS_TOKEN")
-CRYPTO_LIST = ["XRP", "BTC", "CORECHAIN", "NEAR"]
+CRYPTO_LIST = ["XRP", "BTC", "CORECHAIN", "NEAR", "FLR"]
 
 
 def read_commodity_file(file_path):
