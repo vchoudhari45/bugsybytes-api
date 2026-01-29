@@ -1,6 +1,7 @@
 import csv
 import io
 import os
+import re
 import sys
 import time
 
@@ -9,6 +10,7 @@ import yfinance as yf
 
 from src.data.config import (
     LEDGER_IND_COMMODITY_LIST,
+    LEDGER_IND_MF_COMMODITY_LIST,
     LEDGER_PRICE_DB_DIR,
     LEDGER_US_COMMODITY_LIST,
 )
@@ -74,6 +76,7 @@ def load_existing_price_commodities(price_file):
 
 
 _INSTRUMENT_CACHE = {}
+_MF_SCHEME_CODE_CACHE = {}
 
 
 def load_upstox_instruments():
@@ -122,6 +125,50 @@ def get_instrument_key(symbol):
         raise ValueError(f"Symbol {symbol} not found in NSE instruments")
 
     return _INSTRUMENT_CACHE[symbol]
+
+
+def load_amfiindia_scheme_code():
+    """
+    Download and cache all AMFI scheme code once.
+    """
+    if _MF_SCHEME_CODE_CACHE:
+        return _MF_SCHEME_CODE_CACHE
+
+    print("Loading AMFI India scheme codes....")
+
+    url = "https://portal.amfiindia.com/DownloadSchemeData_Po.aspx?mf=0"
+
+    resp = requests.get(url, timeout=30)
+    if resp.status_code != 200:
+        print(f"ERROR: Failed to download scheme data - Status {resp.status_code}")
+        return None
+
+    reader = csv.reader(io.StringIO(resp.text))
+    count = 0
+    for row in reader:
+        if len(row) < 9:
+            continue
+        scheme_code = row[1]
+        isins = row[9]
+        isin_list = re.split(r"(?=INF)", isins)
+
+        if len(isin_list) > 0:
+            for isin in isin_list:
+                _MF_SCHEME_CODE_CACHE[isin] = scheme_code
+                count += 1
+
+    print(f"Loaded {count} MF instruments")
+    return _MF_SCHEME_CODE_CACHE
+
+
+def get_scheme_code(symbol):
+    """Get schemecode key from cache"""
+    load_amfiindia_scheme_code()
+
+    if symbol not in _MF_SCHEME_CODE_CACHE:
+        raise ValueError(f"Symbol {symbol} not found in AMFI India scheme code list")
+
+    return _MF_SCHEME_CODE_CACHE[symbol]
 
 
 def fetch_ind_price_history(symbol, year):
@@ -188,7 +235,47 @@ def fetch_us_price_history(symbol, year):
     }
 
 
-def write_prices_for_year(year, us_commodities, ind_commodities):
+def fetch_ind_mf_price_history(isin, year):
+    """
+    Fetch mutual fund NAV history for a year using mfapi.in.
+    """
+    scheme_code = get_scheme_code(isin)
+    if not scheme_code:
+        return {}
+
+    url = f"https://api.mfapi.in/mf/{scheme_code}"
+
+    from_date = f"{year}-01-01"
+    to_date = f"{year}-12-31"
+
+    resp = requests.get(url, timeout=30)
+
+    if resp.status_code != 200:
+        print(f"ERROR: {isin} - Status {resp.status_code}: {resp.text}")
+        return {}
+
+    data = resp.json()
+
+    if "data" not in data:
+        print(f"WARNING: No data found for scheme {scheme_code}")
+        print(f"Response: {data}")
+        return {}
+
+    prices = {}
+    from_dt = time.strptime(from_date, "%Y-%m-%d")
+    to_dt = time.strptime(to_date, "%Y-%m-%d")
+
+    for entry in data["data"]:
+        dt = time.strptime(entry["date"], "%d-%m-%Y")
+        date_str = time.strftime("%Y-%m-%d", dt)
+        if from_dt <= dt <= to_dt:
+            nav = float(entry["nav"])
+            prices[date_str] = nav
+
+    return prices
+
+
+def write_prices_for_year(year, us_commodities, ind_commodities, ind_mf_commodities):
     """
     Write Ledger price entries for one year.
     """
@@ -224,6 +311,20 @@ def write_prices_for_year(year, us_commodities, ind_commodities):
         for d, rate in sorted(prices.items()):
             new_lines.append(f'P {d} "{commodity}" {rate:.4f} INR')
 
+    # ---------- INDIAN MUTUAL FUNDS ----------
+    for commodity in ind_mf_commodities:
+        if commodity in existing_commodities:
+            # print(f"Skipping {commodity} (already present)")
+            continue
+
+        print(f"Fetching Indian MF {commodity} for {year}")
+        prices = fetch_ind_mf_price_history(commodity, year)
+
+        time.sleep(1)
+
+        for d, rate in sorted(prices.items()):
+            new_lines.append(f'P {d} "{commodity}" {rate:.4f} INR')
+
     if not new_lines:
         print("No new prices to write.")
         return
@@ -246,6 +347,7 @@ if __name__ == "__main__":
     # Commodities are read ONCE and stored as SETS
     us_commodities = read_commodity_file(LEDGER_US_COMMODITY_LIST)
     ind_commodities = read_commodity_file(LEDGER_IND_COMMODITY_LIST)
+    ind_mf_commodities = read_commodity_file(LEDGER_IND_MF_COMMODITY_LIST)
 
-    for year in range(2026, 2027):
-        write_prices_for_year(year, us_commodities, ind_commodities)
+    for year in range(2020, 2027):
+        write_prices_for_year(year, us_commodities, ind_commodities, ind_mf_commodities)

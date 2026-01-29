@@ -45,6 +45,7 @@ LEDGER_ZERO_BALANCE_ACCOUNT_LIST = (
 
 # Commodities
 LEDGER_IND_COMMODITY_LIST = BASE_DIR / "portfolio/common/commodities/ind.db"
+LEDGER_IND_MF_COMMODITY_LIST = BASE_DIR / "portfolio/common/commodities/ind-mf.db"
 LEDGER_US_COMMODITY_LIST = BASE_DIR / "portfolio/common/commodities/us.db"
 
 # Portfolio Report
