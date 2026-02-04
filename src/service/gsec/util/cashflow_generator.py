@@ -3,23 +3,13 @@ from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
-from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
 from sortedcontainers import SortedDict
 
 from src.data.config import QUANTITY_LAG_DAYS
 from src.service.util.holiday_calculator import next_market_day
 from src.service.util.xirr_calculator import forward_xirr, xirr
-
-
-def to_date(val):
-    """Normalize any date-like input to datetime.date"""
-    if isinstance(val, pd.Timestamp):
-        return val.date()
-    if isinstance(val, date):
-        return val
-    return parse(str(val)).date()
-
+from src.service.util.date_util import to_date
 
 def market_shifted(dt: date):
     """Shift date to next market day"""

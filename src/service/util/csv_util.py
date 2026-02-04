@@ -2,6 +2,15 @@ from pathlib import Path
 
 import pandas as pd
 
+def non_comment_lines(file_obj):
+    """Yield only non-comment, non-empty lines"""
+    for line in file_obj:
+        if line.lstrip().startswith("#"):
+            continue
+        if not line.strip():
+            continue
+        yield line
+
 
 def read_all_dated_csv_files_from_folder(
     csv_folder: str | Path, sep: str | None = None
