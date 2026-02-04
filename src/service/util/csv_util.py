@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
+
 def non_comment_lines(file_obj):
     """Yield only non-comment, non-empty lines"""
     for line in file_obj:

@@ -7,9 +7,10 @@ from dateutil.relativedelta import relativedelta
 from sortedcontainers import SortedDict
 
 from src.data.config import QUANTITY_LAG_DAYS
+from src.service.util.date_util import to_date
 from src.service.util.holiday_calculator import next_market_day
 from src.service.util.xirr_calculator import forward_xirr, xirr
-from src.service.util.date_util import to_date
+
 
 def market_shifted(dt: date):
     """Shift date to next market day"""

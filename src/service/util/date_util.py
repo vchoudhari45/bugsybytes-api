@@ -1,6 +1,8 @@
 from datetime import date, datetime
-from dateutil.parser import parse
+
 import pandas as pd
+from dateutil.parser import parse
+
 
 def parse_date(date_str):
     for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):

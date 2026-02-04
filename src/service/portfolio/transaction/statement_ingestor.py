@@ -6,6 +6,7 @@ from src.service.portfolio.transaction.statement_rule_engine import apply_rules
 from src.service.util.csv_util import non_comment_lines
 from src.service.util.date_util import parse_date
 
+
 def create_transaction(
     statement_type, who, date, remark, from_value, to_value, net_amount
 ):
