@@ -60,6 +60,9 @@ python -m src.service.portfolio.ledger_entry_generator
 
 # Ledger Report Generator
 python -m src.service.portfolio.portfolio_recon_report_generator
+
+# Statement Ingestor 
+python -m src.service.portfolio.transaction.statement_ingestor
 ```
 
 Run tox to lint code, execute pytest tests, and generate/validate tests with schemathesis

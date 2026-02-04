@@ -24,8 +24,16 @@ UPSTOX_ACCESS_TOKEN = os.getenv("UPSTOX_ACCESS_TOKEN")
 QUANTITY_LAG_DAYS = 2
 DEFAULT_TARGET_XIRR = 0.0801
 
+# Statement
+STATEMENTS_INGESTOR_RULES_LOOKUP = (
+    BASE_DIR / "portfolio/lookup/statement_ingestor_rules.yaml"
+)
+STATEMENTS_ME_DIR = BASE_DIR / "portfolio/statements/me/additions/"
+STATEMENTS_MOM_DIR = BASE_DIR / "portfolio/statements/mom/additions/"
+STATEMENTS_PAPA_DIR = BASE_DIR / "portfolio/statements/papa/additions/"
+
 # Portfolio
-LEDGER_PRICE_DB_DIR = BASE_DIR / "portfolio/common/prices"
+LEDGER_PRICE_DB_DIR = BASE_DIR / "portfolio/common/prices/"
 LEDGER_ME_DIR = BASE_DIR / "portfolio/ledger-me/"
 LEDGER_MOM_DIR = BASE_DIR / "portfolio/ledger-mom/"
 LEDGER_PAPA_DIR = BASE_DIR / "portfolio/ledger-papa/"
