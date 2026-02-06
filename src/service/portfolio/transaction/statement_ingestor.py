@@ -395,15 +395,17 @@ if __name__ == "__main__":
     )
 
     # ingest mom
-    ingest_statements(statement_type="is", filename="is", who="mom", print_after_date=d)
     ingest_statements(
-        statement_type="zb-lg", filename="zb-lg", who="mom", print_after_date=d
+        statement_type="is", filename="is-mom", who="mom", print_after_date=d
     )
     ingest_statements(
-        statement_type="zb-tb", filename="zb-tb", who="mom", print_after_date=d
+        statement_type="zb-lg", filename="zb-lg-mom", who="mom", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="zb-tb", filename="zb-tb-mom", who="mom", print_after_date=d
     )
 
     # ingest papa
     ingest_statements(
-        statement_type="is", filename="is", who="papa", print_after_date=d
+        statement_type="is", filename="is-papa", who="papa", print_after_date=d
     )
