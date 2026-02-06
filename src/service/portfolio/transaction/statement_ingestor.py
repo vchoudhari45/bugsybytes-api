@@ -377,6 +377,7 @@ def ingest_statements(statement_type, filename, who, print_after_date):
 if __name__ == "__main__":
     # date(YYYY, MM, DD)
     d = date(2025, 12, 31)
+    # ingest me
     ingest_statements(statement_type="is", filename="is", who="me", print_after_date=d)
     ingest_statements(statement_type="hs", filename="hs", who="me", print_after_date=d)
     ingest_statements(statement_type="ks", filename="ks", who="me", print_after_date=d)
@@ -391,4 +392,18 @@ if __name__ == "__main__":
     )
     ingest_statements(
         statement_type="zb-tb", filename="zb-tb", who="me", print_after_date=d
+    )
+
+    # ingest mom
+    ingest_statements(statement_type="is", filename="is", who="mom", print_after_date=d)
+    ingest_statements(
+        statement_type="zb-lg", filename="zb-lg", who="mom", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="zb-tb", filename="zb-tb", who="mom", print_after_date=d
+    )
+
+    # ingest papa
+    ingest_statements(
+        statement_type="is", filename="is", who="papa", print_after_date=d
     )
