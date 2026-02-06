@@ -96,3 +96,33 @@ def apply_rules(context):
             result.update(rule.get("set", {}))
             break
     return result
+
+
+def create_transaction(
+    statement_type, who, date, remark, from_value, to_value, net_amount
+):
+    context = {
+        "statement_type": statement_type.lower(),
+        "who": who.lower(),
+        "remark": remark.lower(),
+        "net_amount": net_amount,
+    }
+    rule_output = apply_rules(context)
+
+    from_account = rule_output.get("from_account", "")
+    to_account = rule_output.get("to_account", "")
+    adjustment_account = rule_output.get("adjustment_account", "")
+    adjustment_value = rule_output.get("adjustment_value", "")
+    lot_selection_method = rule_output.get("lot_selection_method", "")
+
+    return {
+        "DATE(YYYY-MM-DD)": date,
+        "TRANSACTION_REMARK": remark,
+        "FROM_ACCOUNT": from_account,
+        "FROM_VALUE": from_value,
+        "TO_ACCOUNT": to_account,
+        "TO_VALUE": to_value,
+        "ADJUSTMENT_ACCOUNT": adjustment_account,
+        "ADJUSTMENT_VALUE": adjustment_value,
+        "LOT_SELECTION_METHOD": lot_selection_method,
+    }

@@ -31,6 +31,9 @@ STATEMENTS_INGESTOR_RULES_LOOKUP = (
 STATEMENTS_ME_DIR = BASE_DIR / "portfolio/statements/me/additions/"
 STATEMENTS_MOM_DIR = BASE_DIR / "portfolio/statements/mom/additions/"
 STATEMENTS_PAPA_DIR = BASE_DIR / "portfolio/statements/papa/additions/"
+SCRIP_CODE_TO_TICKER_LOOKUP = (
+    BASE_DIR / "portfolio/lookup/scrip_code_to_ticker_lookup.csv"
+)
 
 # Portfolio
 LEDGER_PRICE_DB_DIR = BASE_DIR / "portfolio/common/prices/"

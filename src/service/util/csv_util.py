@@ -1,6 +1,13 @@
+import csv
 from pathlib import Path
 
 import pandas as pd
+
+
+def normalized_dict_reader(file_obj, **kwargs):
+    reader = csv.DictReader(file_obj, **kwargs)
+    reader.fieldnames = [h.strip() for h in reader.fieldnames]
+    return reader
 
 
 def non_comment_lines(file_obj):

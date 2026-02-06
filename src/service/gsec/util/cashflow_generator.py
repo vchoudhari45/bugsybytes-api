@@ -261,7 +261,7 @@ def generate_cashflows(joined_df):
         }
     )
     cashflow_metadata_df = cashflow_metadata_df.sort_values(
-        by="INDIVIDUAL FORWARD XIRR", ascending=False
+        by="INDIVIDUAL XIRR", ascending=False
     )
 
     return cashflow_df, cashflow_metadata_df

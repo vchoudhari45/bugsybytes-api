@@ -5,7 +5,13 @@ from dateutil.parser import parse
 
 
 def parse_date(date_str):
-    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
+    date_str = date_str.strip()
+    for fmt in (
+        "%Y-%m-%d",  # 2026-01-09
+        "%d-%m-%Y",  # 09-01-2026
+        "%d/%m/%Y",  # 09/01/2026
+        "%d/%m/%y",  # 09/01/26
+    ):
         try:
             return datetime.strptime(date_str.strip(), fmt).strftime("%Y-%m-%d")
         except ValueError:
