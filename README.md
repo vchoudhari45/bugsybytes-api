@@ -53,13 +53,10 @@ python -m src.service.gsec.portfolio_tracker
 python -m src.service.nifty50.portfolio_tracker
 
 # Price DB Writer
-python -m src.service.portfolio.price_db_writer
+python -m src.service.portfolio.ledger.price_db_writer
 
 # Ledger Entry Generator
-python -m src.service.portfolio.ledger_entry_generator
-
-# Ledger Report Generator
-python -m src.service.portfolio.portfolio_recon_report_generator
+python -m src.service.portfolio.ledger.ledger_entry_generator
 
 # Statement Ingestor 
 python -m src.service.portfolio.transaction.statement_ingestor

@@ -59,10 +59,6 @@ LEDGER_IND_COMMODITY_LIST = BASE_DIR / "portfolio/common/commodities/ind.db"
 LEDGER_IND_MF_COMMODITY_LIST = BASE_DIR / "portfolio/common/commodities/ind-mf.db"
 LEDGER_US_COMMODITY_LIST = BASE_DIR / "portfolio/common/commodities/us.db"
 
-# Portfolio Report
-PORTFOLIO_RECON_REPORT = BASE_DIR / "portfolio/portfolio_recon_report.xlsx"
-PORTFOLIO_EXPECTED_BALANCES = BASE_DIR / "portfolio/expected_balances.csv"
-
 # Terminal Codes
 RED_BOLD = "\033[1;91m"
 RESET = "\033[0m"
