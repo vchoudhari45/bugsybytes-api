@@ -40,8 +40,8 @@ holidays
 # yfinance
 yfinance
 
-# openpyxl
-openpyxl
+# xlsxwriter
+xlsxwriter
 
 # pyyaml
 pyyaml

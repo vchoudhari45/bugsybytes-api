@@ -43,7 +43,11 @@ LEDGER_PAPA_DIR = BASE_DIR / "portfolio/ledger-papa/"
 TRANSACTION_ME_DIR = BASE_DIR / "portfolio/transactions-me/"
 TRANSACTION_MOM_DIR = BASE_DIR / "portfolio/transactions-mom/"
 TRANSACTION_PAPA_DIR = BASE_DIR / "portfolio/transactions-papa/"
+# Portfolio: Dashboard
+DASHBOARD_CONFIG_PATH = BASE_DIR / "portfolio/dashboard/dashboard_config.yaml"
+PORTFOLIO_DASHBOARD_FILEPATH = BASE_DIR / "portfolio/portfolio_dashboard.xlsx"
 
+# Ledger
 LEDGER_ME_MAIN = BASE_DIR / "portfolio/ledger-me/main.ledger"
 LEDGER_MOM_MAIN = BASE_DIR / "portfolio/ledger-mom/main.ledger"
 LEDGER_PAPA_MAIN = BASE_DIR / "portfolio/ledger-papa/main.ledger"

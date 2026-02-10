@@ -55,11 +55,14 @@ python -m src.service.nifty50.portfolio_tracker
 # Price DB Writer
 python -m src.service.portfolio.ledger.price_db_writer
 
+# Statement Ingestor 
+python -m src.service.portfolio.transaction.statement_ingestor
+
 # Ledger Entry Generator
 python -m src.service.portfolio.ledger.ledger_entry_generator
 
-# Statement Ingestor 
-python -m src.service.portfolio.transaction.statement_ingestor
+# Portfolio Dashboard Generator 
+python -m src.service.portfolio.dashboard.balance_sheet_generator
 ```
 
 Run tox to lint code, execute pytest tests, and generate/validate tests with schemathesis
