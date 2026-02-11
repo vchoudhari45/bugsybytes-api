@@ -349,5 +349,5 @@ if __name__ == "__main__":
     ind_commodities = read_commodity_file(LEDGER_IND_COMMODITY_LIST)
     ind_mf_commodities = read_commodity_file(LEDGER_IND_MF_COMMODITY_LIST)
 
-    for year in range(2020, 2027):
+    for year in range(2026, 2027):
         write_prices_for_year(year, us_commodities, ind_commodities, ind_mf_commodities)

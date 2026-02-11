@@ -62,7 +62,7 @@ python -m src.service.portfolio.transaction.statement_ingestor
 python -m src.service.portfolio.ledger.ledger_entry_generator
 
 # Portfolio Dashboard Generator 
-python -m src.service.portfolio.dashboard.balance_sheet_generator
+python -m src.service.portfolio.dashboard.dashboard_generator
 ```
 
 Run tox to lint code, execute pytest tests, and generate/validate tests with schemathesis

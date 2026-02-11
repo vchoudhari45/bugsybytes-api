@@ -45,6 +45,9 @@ TRANSACTION_MOM_DIR = BASE_DIR / "portfolio/transactions-mom/"
 TRANSACTION_PAPA_DIR = BASE_DIR / "portfolio/transactions-papa/"
 # Portfolio: Dashboard
 DASHBOARD_CONFIG_PATH = BASE_DIR / "portfolio/dashboard/dashboard_config.yaml"
+DASHBOARD_LAYOUT_CONFIG_PATH = (
+    BASE_DIR / "portfolio/dashboard/dashboard_layout_config.yaml"
+)
 PORTFOLIO_DASHBOARD_FILEPATH = BASE_DIR / "portfolio/portfolio_dashboard.xlsx"
 
 # Ledger
@@ -55,7 +58,7 @@ LEDGER_PAPA_MAIN = BASE_DIR / "portfolio/ledger-papa/main.ledger"
 # Account
 LEDGER_ACCOUNT_LIST = BASE_DIR / "portfolio/common/accounts.db"
 LEDGER_ZERO_BALANCE_ACCOUNT_LIST = (
-    BASE_DIR / "portfolio/common/zero-balance-accounts.db"
+    BASE_DIR / "portfolio/dashboard/zero_balance_accounts.yaml"
 )
 
 # Commodities

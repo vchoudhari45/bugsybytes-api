@@ -1,7 +1,42 @@
 import subprocess
 
 
-def get_ledger_cli_output(cmd, ledger_files):
+def get_ledger_cli_output_by_config(config, ledger_files):
+    cmd = config["command"].split()
+
+    begin_date = config.get("begin_date")
+    if begin_date:
+        cmd.extend(["--begin", begin_date])
+
+    end_date = config.get("end_date")
+    if end_date:
+        cmd.extend(["--end", end_date])
+
+    for path in ledger_files:
+        cmd.extend(["-f", str(path)])
+
+    output = run_ledger_cli_command(cmd)
+    all_accounts = parse_ledger_cli_output(output)
+
+    accounts = [p["account"] for p in all_accounts]
+    account_set = set(accounts)
+
+    filter_account = config.get("filter", [])
+
+    leaf_accounts = []
+    for p in all_accounts:
+        prefix = p["account"] + ":"
+        if (
+            not any(a.startswith(prefix) for a in account_set)
+            and p["account"] not in filter_account
+        ):
+            leaf_accounts.append(p)
+
+    return leaf_accounts
+
+
+def run_ledger_cli_command(cmd):
+    # print(" ".join(cmd))
     result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
