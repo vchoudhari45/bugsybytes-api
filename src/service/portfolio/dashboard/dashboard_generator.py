@@ -9,10 +9,9 @@ from src.data.config import (
     LEDGER_ME_MAIN,
     LEDGER_MOM_MAIN,
     LEDGER_PAPA_MAIN,
-    LEDGER_ZERO_BALANCE_ACCOUNT_LIST,
     PORTFOLIO_DASHBOARD_FILEPATH,
 )
-from src.service.portfolio.dashboard.ledger_cli_output_parser import (
+from src.service.portfolio.ledger.ledger_cli_output_parser import (
     get_ledger_cli_output_by_config,
 )
 
@@ -38,6 +37,11 @@ def filter_accounts(data, prefix, zero_list):
         if entry["account"].startswith(prefix)
         and not is_zero_account(entry["account"], zero_list)
     ]
+
+
+def calculate_account_xirr(account_name):
+    # print(f"calculate_account_xirr for {account_name}")
+    return []
 
 
 def calculate_investment_allocation(
@@ -92,25 +96,33 @@ def print_table(
     workbook,
     layout,
     title,
-    headers,
     data,
     start_row,
-    start_col=0,
-    percent_col=None,
+    start_col,
 ):
-    """
-    Prints table and returns:
-        (end_row, width_used)
-    """
+    if start_col is None:
+        start_col = 0
 
-    # Sort automatically if Amount column exists
+    if start_row is None:
+        start_row = 0
+
+    if not data:
+        return start_row, 0
+
+    # Extract headers
+    headers = list(data[0].keys())
+
+    # Sort automatically if Amount exists
     if "Amount" in headers:
         data = sorted(data, key=lambda x: x.get("Amount", 0), reverse=True)
+
+    # Detect percent column
+    percent_col = headers.index("%") if "%" in headers else None
 
     worksheet.write(start_row, start_col, title, layout["section_title_fmt"])
     row = start_row + 1
 
-    # headers
+    # Write headers
     for col, header in enumerate(headers):
         worksheet.write(row, start_col + col, header, layout["header_fmt"])
     row += 1
@@ -121,19 +133,21 @@ def print_table(
         else None
     )
 
-    # data rows
+    # Write rows
     for entry in data:
         for col, header in enumerate(headers):
             value = entry.get(header, "")
+
             if percent_col is not None and col == percent_col:
                 worksheet.write(row, start_col + col, value, percent_fmt)
-            elif "Amount" in header:
+            elif header == "Amount":
                 worksheet.write(row, start_col + col, value, layout["amount_fmt"])
             else:
                 worksheet.write(row, start_col + col, value, layout["account_fmt"])
+
         row += 1
 
-    row += 1  # minimal spacing
+    row += 1
 
     width_used = len(headers)
 
@@ -149,10 +163,22 @@ if __name__ == "__main__":
     with open(DASHBOARD_LAYOUT_CONFIG_PATH, "r") as f:
         dashboard_layout_config = yaml.safe_load(f)
 
-    with open(LEDGER_ZERO_BALANCE_ACCOUNT_LIST, "r") as f:
-        zero_balance_account_config = yaml.safe_load(f)["zero_balance_accounts"]
+    zero_balance_account_config = dashboard_config["dashboard"]["zero_balance_accounts"]
+    categories = dashboard_config["dashboard"]["categories"]
+    individual_xirr_reports = dashboard_config["dashboard"]["individual_xirr_reports"]
 
     ledger_files = {LEDGER_ME_MAIN, LEDGER_MOM_MAIN, LEDGER_PAPA_MAIN}
+
+    # Fetch data
+    balance_sheet_data = get_ledger_cli_output_by_config(
+        dashboard_config["dashboard"]["balance_sheet"],
+        ledger_files,
+    )
+
+    income_statement_data = get_ledger_cli_output_by_config(
+        dashboard_config["dashboard"]["income_statement"],
+        ledger_files,
+    )
 
     workbook = xlsxwriter.Workbook(PORTFOLIO_DASHBOARD_FILEPATH)
 
@@ -180,17 +206,6 @@ if __name__ == "__main__":
     worksheet.write(0, 0, "Portfolio Dashboard", layout["title_fmt"])
     base_row = 2
 
-    # Fetch data
-    balance_sheet_data = get_ledger_cli_output_by_config(
-        dashboard_config["dashboard"]["balance_sheet"],
-        ledger_files,
-    )
-
-    income_statement_data = get_ledger_cli_output_by_config(
-        dashboard_config["dashboard"]["income_statement"],
-        ledger_files,
-    )
-
     # Metrics
     assets = sum_accounts(balance_sheet_data, "Assets", zero_balance_account_config)
     liabilities = sum_accounts(
@@ -214,38 +229,34 @@ if __name__ == "__main__":
 
     allocation_data = calculate_investment_allocation(
         balance_sheet_data,
-        dashboard_config["dashboard"]["categories_allocation_mapping"],
+        categories,
         zero_balance_account_config,
     )
 
-    # Render FIRST ROW (Summary + Allocation only)
+    # Render first row (Summary + Allocation only)
     col_gap = 1
     current_row = base_row
 
     # Summary (left)
     end_row_left, width_left = print_table(
-        worksheet,
-        workbook,
-        layout,
-        "Summary",
-        ["Metric", "Amount"],
-        summary_data,
-        current_row,
-        0,
-        None,
+        worksheet=worksheet,
+        workbook=workbook,
+        layout=layout,
+        title="Summary",
+        data=summary_data,
+        start_row=current_row,
+        start_col=0,
     )
 
     # Allocation (right of summary)
     end_row_right, width_right = print_table(
-        worksheet,
-        workbook,
-        layout,
-        "Investment Allocation",
-        ["Category", "Amount", "%"],
-        allocation_data,
-        current_row,
-        width_left + col_gap,
-        2,
+        worksheet=worksheet,
+        workbook=workbook,
+        layout=layout,
+        title="Investment Allocation",
+        data=allocation_data,
+        start_row=current_row,
+        start_col=width_left + col_gap,
     )
 
     # Next row starts below the tallest of the two
@@ -259,34 +270,24 @@ if __name__ == "__main__":
 
     remaining_tables = []
 
-    categories = dashboard_config["dashboard"]["categories_allocation_mapping"]
-
     for title, prefix in categories.items():
         data = filter_accounts(balance_sheet_data, prefix, zero_balance_account_config)
         if not data:
             continue
 
         remaining_tables.append(
-            (
-                title,
-                ["Account", "Amount"],
-                [{"Account": e["account"], "Amount": e["amount"]} for e in data],
-                None,
-            )
+            (title, [{"Account": e["account"], "Amount": e["amount"]} for e in data])
         )
 
-    for title, headers, data, percent_col in remaining_tables:
-
+    for title, data in remaining_tables:
         end_row, width = print_table(
-            worksheet,
-            workbook,
-            layout,
-            title,
-            headers,
-            data,
-            current_row,
-            current_col,
-            percent_col,
+            worksheet=worksheet,
+            workbook=workbook,
+            layout=layout,
+            title=title,
+            data=data,
+            start_row=current_row,
+            start_col=current_col,
         )
 
         max_row_in_block = max(max_row_in_block, end_row)
@@ -309,6 +310,23 @@ if __name__ == "__main__":
         if abs(balance) > 0.01:
             print(f"❌ Zero balance validation failed for {zero_account}: {balance}")
             sys.exit(1)
+
+    for account_name in individual_xirr_reports:
+        short_account_name = account_name.replace("Assets:Investments:", "").replace(
+            ":", "-"
+        )
+        out = calculate_account_xirr(account_name)
+        ws_xirr = workbook.add_worksheet(short_account_name)
+        ws_xirr.hide_gridlines(2)
+        print_table(
+            worksheet=ws_xirr,
+            workbook=workbook,
+            layout=layout,
+            title=short_account_name,
+            data=out,
+            start_row=0,
+            start_col=0,
+        )
 
     workbook.close()
 

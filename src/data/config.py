@@ -57,9 +57,6 @@ LEDGER_PAPA_MAIN = BASE_DIR / "portfolio/ledger-papa/main.ledger"
 
 # Account
 LEDGER_ACCOUNT_LIST = BASE_DIR / "portfolio/common/accounts.db"
-LEDGER_ZERO_BALANCE_ACCOUNT_LIST = (
-    BASE_DIR / "portfolio/dashboard/zero_balance_accounts.yaml"
-)
 
 # Commodities
 LEDGER_IND_COMMODITY_LIST = BASE_DIR / "portfolio/common/commodities/ind.db"
