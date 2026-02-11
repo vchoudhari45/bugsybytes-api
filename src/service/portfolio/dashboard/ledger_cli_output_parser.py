@@ -36,7 +36,7 @@ def get_ledger_cli_output_by_config(config, ledger_files):
 
 
 def run_ledger_cli_command(cmd):
-    # print(" ".join(cmd))
+    print(" ".join(cmd))
     result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
