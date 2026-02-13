@@ -8,17 +8,25 @@ from src.service.portfolio.ledger.ledger_cli_output_parser import (
 )
 from src.service.util.xirr_calculator import xirr
 
+_AMFI_CACHE = None
+
 
 def fetch_amfi_isin_scheme_map():
     """
     Fetch NAVAll.txt from AMFI and return dict:
     { ISIN -> Scheme Name }
     """
+
+    global _AMFI_CACHE
+
+    if _AMFI_CACHE is not None:
+        return _AMFI_CACHE
+
     url = "https://portal.amfiindia.com/spages/NAVAll.txt"
     response = requests.get(url, timeout=30)
     response.raise_for_status()
 
-    isin_map = {}
+    _AMFI_CACHE = {}
 
     for line in response.text.splitlines():
         # Skip headers, blank lines, section titles
@@ -33,13 +41,13 @@ def fetch_amfi_isin_scheme_map():
         scheme_name = parts[3].strip()
 
         if isin_growth and isin_growth != "-":
-            isin_map[isin_growth] = scheme_name
+            _AMFI_CACHE[isin_growth] = scheme_name
 
-    return isin_map
+    return _AMFI_CACHE
 
 
 def calculate_account_xirr(report, ledger_files):
-    today = datetime.today()
+    today = datetime.today().date()
 
     amfi_isin_map = fetch_amfi_isin_scheme_map()
 
@@ -69,33 +77,32 @@ def calculate_account_xirr(report, ledger_files):
 
         cashflow_dates = []
         cashflow = []
-        investment_amount = 0
+        investment_amount = 0.0
         for entry in cashflow_data:
             date_value = entry["date"]
-            if isinstance(date_value, datetime):
-                date_obj = date_value.date()
-            elif isinstance(date_value, str):
+            if isinstance(date_value, str):
                 date_obj = datetime.strptime(date_value, "%y-%b-%d").date()
             else:
-                raise ValueError(f"Unsupported date type: {type(date_value)}")
+                date_obj = date_value.date()
+
+            amount = float(entry["amount"])
 
             cashflow_dates.append(date_obj)
-            cashflow.append(float(entry["amount"]))
-            investment_amount += float(entry["amount"])
-
-        investment_amount_current_value = 0
-        if not current_value:
-            cashflow_data.append({"date": today, "amount": 0})
-        else:
-            investment_amount_current_value = current_value[0]["amount"]
-            cashflow_data.append(
-                {"date": today, "amount": investment_amount_current_value}
-            )
+            cashflow.append(amount)
+            investment_amount += amount
 
         # ignore investment which don't have any investments anymore
         investment_amount = abs(investment_amount)
-        if investment_amount == 0:
+        if investment_amount <= 5:
             continue
+
+        # add investment_amount_current_value to cashflow
+        investment_amount_current_value = (
+            float(current_value[0]["amount"]) if current_value else 0.0
+        )
+        if investment_amount_current_value != 0:
+            cashflow_dates.append(today)
+            cashflow.append(investment_amount_current_value)
 
         # Calculate XIRR
         min_date = min(cashflow_dates)
@@ -119,6 +126,7 @@ def calculate_account_xirr(report, ledger_files):
                 "CURRENT_VALUE": investment_amount_current_value,
                 "ABSOLUTE RETURN": abs_return,
                 "XIRR": xirr_value * 100,
+                "DAYS SINCE FIRST INVESTMENT": number_of_days_since_first_investment,
             }
         )
 
