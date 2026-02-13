@@ -5,6 +5,7 @@ import re
 import sys
 import time
 
+import pandas as pd
 import requests
 import yfinance as yf
 
@@ -13,10 +14,13 @@ from src.data.config import (
     LEDGER_IND_MF_COMMODITY_LIST,
     LEDGER_PRICE_DB_DIR,
     LEDGER_US_COMMODITY_LIST,
+    NSE_GSEC_LIVE_DATA_DIR,
 )
+from src.service.util.csv_util import read_all_dated_csv_files_from_folder
 
 UPSTOX_ACCESS_TOKEN = os.getenv("UPSTOX_ACCESS_TOKEN")
 CRYPTO_LIST = ["XRP", "BTC", "CORECHAIN", "NEAR", "FLR"]
+nse_gsec_files = read_all_dated_csv_files_from_folder(NSE_GSEC_LIVE_DATA_DIR)
 
 
 def read_commodity_file(file_path):
@@ -285,6 +289,15 @@ def write_prices_for_year(year, us_commodities, ind_commodities, ind_mf_commodit
     # Load existing commodities ONCE (performance fix)
     existing_commodities = load_existing_price_commodities(output_file)
 
+    # Track (date + commodity) to avoid duplicates
+    existing_prefixes = set()
+
+    def add_price_line(d, commodity, rate, currency):
+        prefix = f'P {d} "{commodity}"'
+        if prefix not in existing_prefixes:
+            new_lines.append(f"{prefix} {rate:.4f} {currency}")
+            existing_prefixes.add(prefix)
+
     # ---------- US COMMODITIES ----------
     for commodity in us_commodities:
         if commodity in existing_commodities:
@@ -295,7 +308,7 @@ def write_prices_for_year(year, us_commodities, ind_commodities, ind_mf_commodit
         prices = fetch_us_price_history(commodity, year)
 
         for d, rate in sorted(prices.items()):
-            new_lines.append(f'P {d} "{commodity}" {rate:.4f} USD')
+            add_price_line(d, commodity, float(rate), "USD")
 
     # ---------- INDIAN COMMODITIES ----------
     for commodity in ind_commodities:
@@ -309,7 +322,7 @@ def write_prices_for_year(year, us_commodities, ind_commodities, ind_mf_commodit
         time.sleep(3)
 
         for d, rate in sorted(prices.items()):
-            new_lines.append(f'P {d} "{commodity}" {rate:.4f} INR')
+            add_price_line(d, commodity, float(rate), "INR")
 
     # ---------- INDIAN MUTUAL FUNDS ----------
     for commodity in ind_mf_commodities:
@@ -323,12 +336,33 @@ def write_prices_for_year(year, us_commodities, ind_commodities, ind_mf_commodit
         time.sleep(1)
 
         for d, rate in sorted(prices.items()):
-            new_lines.append(f'P {d} "{commodity}" {rate:.4f} INR')
+            add_price_line(d, commodity, float(rate), "INR")
+
+    # ---------- Update file from nse live data for GSec  ----------
+    if not nse_gsec_files.empty:
+        df = nse_gsec_files[["SYMBOL", "DATE", "LTP", "PREV.CLOSE"]].copy()
+
+        df.rename(columns={"PREV.CLOSE": "PREV_CLOSE"}, inplace=True)
+        df["DATE"] = pd.to_datetime(df["DATE"])
+
+        for row in df.itertuples(index=False):
+            d = row.DATE.strftime("%Y-%m-%d")
+
+            ltp = row.LTP
+
+            # If LTP is '-' use PREV.CLOSE
+            if ltp == "-" or pd.isna(ltp):
+                rate = float(str(row.PREV_CLOSE).replace(",", ""))
+            else:
+                rate = float(str(ltp).replace(",", ""))
+
+            add_price_line(d, row.SYMBOL, rate, "INR")
 
     if not new_lines:
         print("No new prices to write.")
         return
 
+    new_lines.sort(key=lambda line: (line.split('"')[1], line.split()[1]))
     write_header = not output_file.exists() or output_file.stat().st_size == 0
 
     with open(output_file, "a") as f:

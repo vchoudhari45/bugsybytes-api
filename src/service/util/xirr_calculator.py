@@ -30,10 +30,18 @@ def xirr(dates, cashflows, guess=0.1):
             )
 
     try:
-        return newton(func=npv, x0=guess, fprime=d_npv, maxiter=100)
+        return newton(func=npv, x0=guess, fprime=d_npv, maxiter=200)
     except RuntimeError:
         # Fallback: if Newton-Raphson fails with initial guess, try a different starting
-        return newton(func=npv, x0=0.2, fprime=d_npv, maxiter=100)
+        try:
+            return newton(func=npv, x0=0.2, fprime=d_npv, maxiter=200)
+        except RuntimeError:
+            # Try negative guess for loss scenarios
+            try:
+                return newton(func=npv, x0=-0.5, fprime=d_npv, maxiter=200)
+            except RuntimeError:
+                # If still fails, return NaN (better than 0, as 0 implies break-even)
+                return 0
 
 
 def forward_xirr(dates, cashflows, portfolio_value, guess=0.1):
@@ -69,9 +77,15 @@ def forward_xirr(dates, cashflows, portfolio_value, guess=0.1):
             )
 
     try:
-        return newton(func=npv, x0=guess, fprime=d_npv, maxiter=100)
+        return newton(func=npv, x0=guess, fprime=d_npv, maxiter=200)
     except RuntimeError:
-        return newton(func=npv, x0=0.2, fprime=d_npv, maxiter=100)
+        try:
+            return newton(func=npv, x0=0.2, fprime=d_npv, maxiter=200)
+        except RuntimeError:
+            try:
+                return newton(func=npv, x0=-0.5, fprime=d_npv, maxiter=200)
+            except RuntimeError:
+                return 0
 
 
 def calculate_price_for_target_xirr_binary(

@@ -11,6 +11,7 @@ from src.data.config import (
     LEDGER_PAPA_MAIN,
     PORTFOLIO_DASHBOARD_FILEPATH,
 )
+from src.service.portfolio.dashboard.account_performance import calculate_account_xirr
 from src.service.portfolio.ledger.ledger_cli_output_parser import (
     get_ledger_cli_output_by_config,
 )
@@ -37,11 +38,6 @@ def filter_accounts(data, prefix, zero_list):
         if entry["account"].startswith(prefix)
         and not is_zero_account(entry["account"], zero_list)
     ]
-
-
-def calculate_account_xirr(account_name):
-    # print(f"calculate_account_xirr for {account_name}")
-    return []
 
 
 def calculate_investment_allocation(
@@ -92,13 +88,7 @@ def calculate_investment_allocation(
 
 
 def print_table(
-    worksheet,
-    workbook,
-    layout,
-    title,
-    data,
-    start_row,
-    start_col,
+    worksheet, workbook, layout, title, data, start_row, start_col, sort=True
 ):
     if start_col is None:
         start_col = 0
@@ -113,7 +103,7 @@ def print_table(
     headers = list(data[0].keys())
 
     # Sort automatically if Amount exists
-    if "Amount" in headers:
+    if sort and "Amount" in headers:
         data = sorted(data, key=lambda x: x.get("Amount", 0), reverse=True)
 
     # Detect percent column
@@ -190,19 +180,6 @@ if __name__ == "__main__":
     worksheet = workbook.add_worksheet("Dashboard")
     worksheet.hide_gridlines(2)
 
-    # Column widths (supports 3 tables per row)
-    worksheet.set_column(0, 0, 26)
-    worksheet.set_column(1, 1, 14)
-    worksheet.set_column(2, 2, 10)
-
-    worksheet.set_column(3, 3, 26)
-    worksheet.set_column(4, 4, 14)
-    worksheet.set_column(5, 5, 10)
-
-    worksheet.set_column(6, 6, 26)
-    worksheet.set_column(7, 7, 14)
-    worksheet.set_column(8, 8, 10)
-
     worksheet.write(0, 0, "Portfolio Dashboard", layout["title_fmt"])
     base_row = 2
 
@@ -220,9 +197,9 @@ if __name__ == "__main__":
     )
 
     summary_data = [
+        {"Metric": "Net Worth", "Amount": assets - liabilities},
         {"Metric": "Assets", "Amount": assets},
         {"Metric": "Liabilities", "Amount": liabilities},
-        {"Metric": "Net Worth", "Amount": assets - liabilities},
         {"Metric": "Liquid Cash", "Amount": liquid_cash},
         {"Metric": "Cashflow (Current Period)", "Amount": income - expenses},
     ]
@@ -233,11 +210,11 @@ if __name__ == "__main__":
         zero_balance_account_config,
     )
 
-    # Render first row (Summary + Allocation only)
+    # Render first row
     col_gap = 1
     current_row = base_row
 
-    # Summary (left)
+    # Summary
     end_row_left, width_left = print_table(
         worksheet=worksheet,
         workbook=workbook,
@@ -246,9 +223,10 @@ if __name__ == "__main__":
         data=summary_data,
         start_row=current_row,
         start_col=0,
+        sort=False,
     )
 
-    # Allocation (right of summary)
+    # Allocation
     end_row_right, width_right = print_table(
         worksheet=worksheet,
         workbook=workbook,
@@ -262,7 +240,7 @@ if __name__ == "__main__":
     # Next row starts below the tallest of the two
     current_row = max(end_row_left, end_row_right)
 
-    # Render tables (3 per row)
+    # Render tables
     tables_in_row = 3
     current_col = 0
     tables_in_current_row = 0
@@ -300,6 +278,20 @@ if __name__ == "__main__":
             current_col = 0
             tables_in_current_row = 0
 
+    for report in individual_xirr_reports:
+        out = calculate_account_xirr(report, ledger_files)
+        ws_xirr = workbook.add_worksheet(report["name"])
+        ws_xirr.hide_gridlines(2)
+        print_table(
+            worksheet=ws_xirr,
+            workbook=workbook,
+            layout=layout,
+            title=report["name"],
+            data=out,
+            start_row=0,
+            start_col=0,
+        )
+
     # Zero Balance Validation
     for zero_account in zero_balance_account_config:
         balance = sum(
@@ -310,23 +302,6 @@ if __name__ == "__main__":
         if abs(balance) > 0.01:
             print(f"❌ Zero balance validation failed for {zero_account}: {balance}")
             sys.exit(1)
-
-    for account_name in individual_xirr_reports:
-        short_account_name = account_name.replace("Assets:Investments:", "").replace(
-            ":", "-"
-        )
-        out = calculate_account_xirr(account_name)
-        ws_xirr = workbook.add_worksheet(short_account_name)
-        ws_xirr.hide_gridlines(2)
-        print_table(
-            worksheet=ws_xirr,
-            workbook=workbook,
-            layout=layout,
-            title=short_account_name,
-            data=out,
-            start_row=0,
-            start_col=0,
-        )
 
     workbook.close()
 
