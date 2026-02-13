@@ -109,8 +109,8 @@ def print_table(
     # Detect percent column
     percent_col = headers.index("%") if "%" in headers else None
 
-    worksheet.write(start_row, start_col, title, layout["section_title_fmt"])
-    row = start_row + 1
+    # worksheet.write(start_row, start_col, title, layout["section_title_fmt"])
+    row = start_row
 
     # Write headers
     for col, header in enumerate(headers):
