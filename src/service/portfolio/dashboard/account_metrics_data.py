@@ -148,22 +148,29 @@ def compute_for_commodity(commodity, amfi_isin_map, report, ledger_files, today)
 
     # Calculate absolute return
     abs_return = (
-        (investment_amount_current_value - investment_amount) / investment_amount
-    ) * 100
+        investment_amount_current_value - investment_amount
+    ) / investment_amount
 
     # Get metrics
     company_id = get_company_id(display_name)
     metrics = get_metrics(company_id)
 
     # Append row
-    output = {
-        "SYMBOL": display_name,
-        "INVESTMENT_AMOUNT": investment_amount,
-        "CURRENT_VALUE": investment_amount_current_value,
-        "ABSOLUTE RETURN": abs_return,
-        "XIRR": xirr_value * 100,
-        "DAYS SINCE FIRST INVESTMENT": number_of_days_since_first_investment,
-    }
+    output = {"SYMBOL": commodity}
+
+    # adding display name for mutual fund
+    if display_name.lower() != commodity.lower():
+        output["NAME"] = display_name
+
+    output.update(
+        {
+            "INVESTMENT_AMOUNT": round(investment_amount, 2),
+            "CURRENT_VALUE": round(investment_amount_current_value, 2),
+            "ABSOLUTE RETURN": round(abs_return, 2),
+            "XIRR": round(xirr_value, 2),
+            "DAYS SINCE FIRST INVESTMENT": number_of_days_since_first_investment,
+        }
+    )
     output.update(metrics)
 
     return output
@@ -172,10 +179,12 @@ def compute_for_commodity(commodity, amfi_isin_map, report, ledger_files, today)
 def calculate_individual_xirr_report_data(ledger_files, individual_xirr_reports_config):
     individual_xirr_reports_data = []
     for report in individual_xirr_reports_config:
+        data = get_account_performance_metrics_data(report, ledger_files)
+        data.sort(key=lambda x: x.get("XIRR", 0), reverse=False)
         individual_xirr_reports_data.append(
             {
                 "name": report["name"],
-                "data": get_account_performance_metrics_data(report, ledger_files),
+                "data": data,
             }
         )
     return individual_xirr_reports_data

@@ -29,9 +29,13 @@ def calculate_category_tables_data(
         if not data:
             continue
 
-        category_tables_data.append(
-            (title, [{"Account": e["account"], "Amount": e["amount"]} for e in data])
+        sorted_data = sorted(
+            [{"Account": e["account"], "Amount": e["amount"]} for e in data],
+            key=lambda x: x["Amount"],
+            reverse=True,
         )
+        category_tables_data.append((title, sorted_data))
+
     return category_tables_data
 
 
@@ -103,4 +107,5 @@ def calculate_investment_allocation(
             }
         )
 
+    allocation_data.sort(key=lambda x: x["Amount"], reverse=True)
     return allocation_data

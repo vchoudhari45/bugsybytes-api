@@ -26,30 +26,44 @@ from src.service.portfolio.ledger.ledger_cli_output_parser import (
     get_ledger_cli_output_by_config,
 )
 
+# Fields
+amount_fields = [
+    "INVESTMENT_AMOUNT",
+    "CURRENT_VALUE",
+    "ABSOLUTE RETURN",
+    "XIRR",
+    "DAYS SINCE FIRST INVESTMENT",
+    "EPS",
+    "PE",
+    "MEDIAN PE",
+    "AMOUNT",
+    "INVESTMENT AMOUNT",
+    "INFLATION ADJUSTED YEARLY EXPENSES",
+    "INCOME",
+    "TAX",
+    "INVESTMENT AMOUNT FOR NEXT YEAR",
+]
+
+percent_fields = ["%", "XIRR", "ABSOLUTE RETURN"]
+
 
 def print_table(
     worksheet, workbook, layout, title, data, start_row, start_col, sort=True
 ):
-    if start_col is None:
-        start_col = 0
-
-    if start_row is None:
-        start_row = 0
+    # Default positions
+    start_col = start_col or 0
+    start_row = start_row or 0
 
     if not data:
         return start_row, 0
 
+    # Normalize field names to uppercase for safe comparison
+    amount_fields_upper = {field.upper() for field in amount_fields}
+    percent_fields_upper = {field.upper() for field in percent_fields}
+
     # Extract headers
     headers = list(data[0].keys())
 
-    # Sort automatically if Amount exists
-    if sort and "Amount" in headers:
-        data = sorted(data, key=lambda x: x.get("Amount", 0), reverse=True)
-
-    # Detect percent column
-    percent_col = headers.index("%") if "%" in headers else None
-
-    # worksheet.write(start_row, start_col, title, layout["section_title_fmt"])
     row = start_row
 
     # Write headers
@@ -57,30 +71,27 @@ def print_table(
         worksheet.write(row, start_col + col, header, layout["header_fmt"])
     row += 1
 
-    percent_fmt = (
-        workbook.add_format({"num_format": "0.00%"})
-        if percent_col is not None
-        else None
-    )
-
     # Write rows
     for entry in data:
         for col, header in enumerate(headers):
             value = entry.get(header, "")
+            header_upper = header.upper()
 
-            if percent_col is not None and col == percent_col:
-                worksheet.write(row, start_col + col, value, percent_fmt)
-            elif header == "Amount":
+            # Percent fields
+            if header_upper in percent_fields_upper:
+                worksheet.write(row, start_col + col, value, layout["percent_fmt"])
+
+            # Amount fields
+            elif header_upper in amount_fields_upper:
                 worksheet.write(row, start_col + col, value, layout["amount_fmt"])
+
+            # Default format
             else:
                 worksheet.write(row, start_col + col, value, layout["account_fmt"])
-
         row += 1
 
-    row += 1
-
+    row += 1  # spacing after table
     width_used = len(headers)
-
     return row, width_used
 
 
@@ -153,14 +164,7 @@ if __name__ == "__main__":
     worksheet = workbook.add_worksheet("Dashboard")
     worksheet.hide_gridlines(2)
 
-    worksheet.merge_range(
-        first_row=0,
-        first_col=0,
-        last_row=0,
-        last_col=8,
-        data="Portfolio Dashboard",
-        format=layout["title_fmt"],
-    )
+    worksheet.write(0, 0, "Portfolio Dashboard", layout["title_fmt"])
     base_row = 2
 
     # Render first row
@@ -235,6 +239,19 @@ if __name__ == "__main__":
             start_row=0,
             start_col=0,
         )
+
+    # Render retirement tracking data
+    ws_retirement = workbook.add_worksheet("Retirement")
+    ws_retirement.hide_gridlines(2)
+    print_table(
+        worksheet=ws_retirement,
+        workbook=workbook,
+        layout=layout,
+        title="Retirement",
+        data=retirement_tracking_data,
+        start_row=0,
+        start_col=0,
+    )
 
     # Zero Balance Validation
     for zero_account in zero_balance_account_config:
