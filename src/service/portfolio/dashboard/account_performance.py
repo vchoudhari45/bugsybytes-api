@@ -1,5 +1,7 @@
+import concurrent.futures
 import sys
 from datetime import datetime
+from functools import partial
 
 import requests
 
@@ -46,7 +48,128 @@ def fetch_amfi_isin_scheme_map():
     return _AMFI_CACHE
 
 
-def calculate_account_xirr(report, ledger_files):
+def get_company_id(company_name):
+    company_name = company_name.replace("-", " ")
+    url = f"https://www.screener.in/api/company/search/?q={requests.utils.quote(company_name)}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        if not data:
+            return None
+        id = data[0]["id"]
+        return id
+    except Exception as e:
+        print(f"Error while fetching company ID for '{company_name}': {e}")
+        return None
+
+
+def get_metrics(company_id):
+    if not company_id:
+        return {}
+    url = (
+        f"https://www.screener.in/api/company/{company_id}/chart/"
+        "?q=Price+to+Earning-Median+PE-EPS"
+        "&days=700"
+    )
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        metrics = {}
+        datasets = data.get("datasets", [])
+        for ds in datasets:
+            if ds.get("values"):
+                val = ds["values"][-1][1]
+                label = ds["label"]
+                if label == "PE":
+                    metrics["PE"] = val
+                elif "Median PE" in label:
+                    metrics["MEDIAN PE"] = val
+                elif "TTM EPS" in label:
+                    metrics["EPS"] = val
+        return metrics
+    except Exception:
+        return {}
+
+
+def compute_for_commodity(commodity, amfi_isin_map, report, ledger_files, today):
+    display_name = amfi_isin_map.get(commodity, commodity)
+
+    # Get cashflow for each commodity using ledger register command
+    cashflow_data = get_ledger_cli_output_by_config(
+        report["register"], ledger_files, commodity, "register"
+    )
+    # Get current value of each commodity using ledger balance command
+    current_value = get_ledger_cli_output_by_config(
+        report["balance"], ledger_files, commodity, "balance"
+    )
+    if current_value and len(current_value) > 1:
+        print("Can't have multiple values for single commodity ")
+        sys.exit(1)
+
+    cashflow_dates = []
+    cashflow = []
+    investment_amount = 0.0
+    for entry in cashflow_data:
+        date_value = entry["date"]
+        if isinstance(date_value, str):
+            date_obj = datetime.strptime(date_value, "%y-%b-%d").date()
+        else:
+            date_obj = date_value.date()
+
+        amount = float(entry["amount"])
+
+        cashflow_dates.append(date_obj)
+        cashflow.append(amount)
+        investment_amount += amount
+
+    # ignore investment which don't have any investments anymore
+    investment_amount = abs(investment_amount)
+    if investment_amount <= 5:
+        return None
+
+    # add investment_amount_current_value to cashflow
+    investment_amount_current_value = (
+        float(current_value[0]["amount"]) if current_value else 0.0
+    )
+    if investment_amount_current_value != 0:
+        cashflow_dates.append(today)
+        cashflow.append(investment_amount_current_value)
+
+    # Calculate XIRR
+    min_date = min(cashflow_dates)
+    max_date = max(cashflow_dates)
+    number_of_days_since_first_investment = (max_date - min_date).days
+    if number_of_days_since_first_investment > 180:
+        xirr_value = xirr(cashflow_dates, cashflow)
+    else:
+        xirr_value = 0
+
+    # Calculate absolute return
+    abs_return = (
+        (investment_amount_current_value - investment_amount) / investment_amount
+    ) * 100
+
+    # Get metrics
+    company_id = get_company_id(display_name)
+    metrics = get_metrics(company_id)
+
+    # Append row
+    output = {
+        "SYMBOL": display_name,
+        "INVESTMENT_AMOUNT": investment_amount,
+        "CURRENT_VALUE": investment_amount_current_value,
+        "ABSOLUTE RETURN": abs_return,
+        "XIRR": xirr_value * 100,
+        "DAYS SINCE FIRST INVESTMENT": number_of_days_since_first_investment,
+    }
+    output.update(metrics)
+
+    return output
+
+
+def calculate_account_metrics(report, ledger_files):
     today = datetime.today().date()
 
     amfi_isin_map = fetch_amfi_isin_scheme_map()
@@ -55,80 +178,23 @@ def calculate_account_xirr(report, ledger_files):
     commodities = get_ledger_cli_output_by_config(
         report["list_commodity"], ledger_files, None, "commodities"
     )
-    # For each of that commodity get cashflow for that commodity
+
+    # Filter commodities
+    filtered_commodities = [c for c in commodities if c != "INR"]
+
+    # Parallelize computation for each commodity
     xirr_output = []
-    for commodity in commodities:
-        if commodity == "INR":
-            continue
-
-        display_name = amfi_isin_map.get(commodity, commodity)
-
-        # Get cashflow for each commodity using ledger register command
-        cashflow_data = get_ledger_cli_output_by_config(
-            report["register"], ledger_files, commodity, "register"
+    if filtered_commodities:
+        compute_func = partial(
+            compute_for_commodity,
+            amfi_isin_map=amfi_isin_map,
+            report=report,
+            ledger_files=ledger_files,
+            today=today,
         )
-        # Get current value of each commodity using ledger balance command
-        current_value = get_ledger_cli_output_by_config(
-            report["balance"], ledger_files, commodity, "balance"
-        )
-        if current_value and len(current_value) > 1:
-            print("Can't have multiple values for single commodity ")
-            sys.exit(1)
-
-        cashflow_dates = []
-        cashflow = []
-        investment_amount = 0.0
-        for entry in cashflow_data:
-            date_value = entry["date"]
-            if isinstance(date_value, str):
-                date_obj = datetime.strptime(date_value, "%y-%b-%d").date()
-            else:
-                date_obj = date_value.date()
-
-            amount = float(entry["amount"])
-
-            cashflow_dates.append(date_obj)
-            cashflow.append(amount)
-            investment_amount += amount
-
-        # ignore investment which don't have any investments anymore
-        investment_amount = abs(investment_amount)
-        if investment_amount <= 5:
-            continue
-
-        # add investment_amount_current_value to cashflow
-        investment_amount_current_value = (
-            float(current_value[0]["amount"]) if current_value else 0.0
-        )
-        if investment_amount_current_value != 0:
-            cashflow_dates.append(today)
-            cashflow.append(investment_amount_current_value)
-
-        # Calculate XIRR
-        min_date = min(cashflow_dates)
-        max_date = max(cashflow_dates)
-        number_of_days_since_first_investment = (max_date - min_date).days
-        if number_of_days_since_first_investment >= 365:
-            xirr_value = xirr(cashflow_dates, cashflow)
-        else:
-            xirr_value = 0
-
-        # Calculate absolute return
-        abs_return = (
-            (investment_amount_current_value - investment_amount) / investment_amount
-        ) * 100
-
-        # Append row
-        xirr_output.append(
-            {
-                "SYMBOL": display_name,
-                "INVESTMENT_AMOUNT": investment_amount,
-                "CURRENT_VALUE": investment_amount_current_value,
-                "ABSOLUTE RETURN": abs_return,
-                "XIRR": xirr_value * 100,
-                "DAYS SINCE FIRST INVESTMENT": number_of_days_since_first_investment,
-            }
-        )
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            results = executor.map(compute_func, filtered_commodities)
+            xirr_output = [r for r in results if r is not None]
 
     # Sort by SYMBOL
     xirr_output.sort(key=lambda x: x["SYMBOL"])

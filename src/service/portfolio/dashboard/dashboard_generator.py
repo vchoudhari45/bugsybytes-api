@@ -11,7 +11,12 @@ from src.data.config import (
     LEDGER_PAPA_MAIN,
     PORTFOLIO_DASHBOARD_FILEPATH,
 )
-from src.service.portfolio.dashboard.account_performance import calculate_account_xirr
+from src.service.portfolio.dashboard.account_performance import (
+    calculate_account_metrics,
+)
+from src.service.portfolio.dashboard.retirement_tracker import (
+    generate_retirement_tracker,
+)
 from src.service.portfolio.ledger.ledger_cli_output_parser import (
     get_ledger_cli_output_by_config,
 )
@@ -156,6 +161,7 @@ if __name__ == "__main__":
     zero_balance_account_config = dashboard_config["dashboard"]["zero_balance_accounts"]
     categories = dashboard_config["dashboard"]["categories"]
     individual_xirr_reports = dashboard_config["dashboard"]["individual_xirr_reports"]
+    retirement_tracker_config = dashboard_config["dashboard"]["retirement_tracker"]
 
     ledger_files = {LEDGER_ME_MAIN, LEDGER_MOM_MAIN, LEDGER_PAPA_MAIN}
 
@@ -209,6 +215,9 @@ if __name__ == "__main__":
         categories,
         zero_balance_account_config,
     )
+
+    # Create Retirement Tracker
+    generate_retirement_tracker(retirement_tracker_config)
 
     # Render first row
     col_gap = 1
@@ -279,7 +288,7 @@ if __name__ == "__main__":
             tables_in_current_row = 0
 
     for report in individual_xirr_reports:
-        out = calculate_account_xirr(report, ledger_files)
+        out = calculate_account_metrics(report, ledger_files)
         ws_xirr = workbook.add_worksheet(report["name"])
         ws_xirr.hide_gridlines(2)
         print_table(
