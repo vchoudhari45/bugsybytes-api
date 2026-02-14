@@ -11,85 +11,20 @@ from src.data.config import (
     LEDGER_PAPA_MAIN,
     PORTFOLIO_DASHBOARD_FILEPATH,
 )
-from src.service.portfolio.dashboard.account_performance import (
-    calculate_account_metrics,
+from src.service.portfolio.dashboard.account_metrics_data import (
+    calculate_individual_xirr_report_data,
 )
-from src.service.portfolio.dashboard.retirement_tracker import (
-    generate_retirement_tracker,
+from src.service.portfolio.dashboard.dashboard_data import (
+    calculate_category_tables_data,
+    calculate_investment_allocation,
+    calculate_summary_data,
+)
+from src.service.portfolio.dashboard.retirement_data import (
+    calculate_retirement_data,
 )
 from src.service.portfolio.ledger.ledger_cli_output_parser import (
     get_ledger_cli_output_by_config,
 )
-
-
-# Helpers
-def is_zero_account(account, zero_list):
-    return any(account.startswith(z) for z in zero_list)
-
-
-def sum_accounts(data, prefix, zero_list):
-    return sum(
-        entry["amount"]
-        for entry in data
-        if entry["account"].startswith(prefix)
-        and not is_zero_account(entry["account"], zero_list)
-    )
-
-
-def filter_accounts(data, prefix, zero_list):
-    return [
-        entry
-        for entry in data
-        if entry["account"].startswith(prefix)
-        and not is_zero_account(entry["account"], zero_list)
-    ]
-
-
-def calculate_investment_allocation(
-    balance_sheet_data,
-    categories_mapping,
-    zero_balance_account_config,
-):
-    allocation_totals = {name: 0 for name in categories_mapping.keys()}
-    allocation_totals["Other"] = 0
-    total_investment = 0
-
-    for entry in balance_sheet_data:
-        account = entry["account"]
-        amount = entry["amount"]
-
-        if is_zero_account(account, zero_balance_account_config):
-            continue
-
-        if not account.startswith("Assets"):
-            continue
-
-        matched = False
-        for name, prefix in categories_mapping.items():
-            if account.startswith(prefix):
-                allocation_totals[name] += amount
-                matched = True
-                break
-
-        if not matched:
-            allocation_totals["Other"] += amount
-
-        total_investment += amount
-
-    allocation_data = []
-    for name, amount in allocation_totals.items():
-        if amount == 0:
-            continue
-
-        allocation_data.append(
-            {
-                "Category": name,
-                "Amount": amount,
-                "%": (amount / total_investment) if total_investment else 0,
-            }
-        )
-
-    return allocation_data
 
 
 def print_table(
@@ -160,70 +95,79 @@ if __name__ == "__main__":
 
     zero_balance_account_config = dashboard_config["dashboard"]["zero_balance_accounts"]
     categories = dashboard_config["dashboard"]["categories"]
-    individual_xirr_reports = dashboard_config["dashboard"]["individual_xirr_reports"]
+    individual_xirr_reports_config = dashboard_config["dashboard"][
+        "individual_xirr_reports"
+    ]
     retirement_tracker_config = dashboard_config["dashboard"]["retirement_tracker"]
-
     ledger_files = {LEDGER_ME_MAIN, LEDGER_MOM_MAIN, LEDGER_PAPA_MAIN}
 
-    # Fetch data
+    # Balance Sheet data
     balance_sheet_data = get_ledger_cli_output_by_config(
         dashboard_config["dashboard"]["balance_sheet"],
         ledger_files,
     )
 
+    # Income Statement Data
     income_statement_data = get_ledger_cli_output_by_config(
         dashboard_config["dashboard"]["income_statement"],
         ledger_files,
     )
 
-    workbook = xlsxwriter.Workbook(PORTFOLIO_DASHBOARD_FILEPATH)
-
-    layout = {
-        name: workbook.add_format(props)
-        for name, props in dashboard_layout_config.items()
-    }
-
-    worksheet = workbook.add_worksheet("Dashboard")
-    worksheet.hide_gridlines(2)
-
-    worksheet.write(0, 0, "Portfolio Dashboard", layout["title_fmt"])
-    base_row = 2
-
-    # Metrics
-    assets = sum_accounts(balance_sheet_data, "Assets", zero_balance_account_config)
-    liabilities = sum_accounts(
-        balance_sheet_data, "Liabilities", zero_balance_account_config
-    )
-    liquid_cash = sum_accounts(
-        balance_sheet_data, "Assets:Bank", zero_balance_account_config
-    )
-    income = sum_accounts(income_statement_data, "Income", zero_balance_account_config)
-    expenses = sum_accounts(
-        income_statement_data, "Expenses", zero_balance_account_config
+    # Metrics & Summary Data
+    summary_data = calculate_summary_data(
+        balance_sheet_data=balance_sheet_data,
+        income_statement_data=income_statement_data,
+        zero_balance_account_config=zero_balance_account_config,
     )
 
-    summary_data = [
-        {"Metric": "Net Worth", "Amount": assets - liabilities},
-        {"Metric": "Assets", "Amount": assets},
-        {"Metric": "Liabilities", "Amount": liabilities},
-        {"Metric": "Liquid Cash", "Amount": liquid_cash},
-        {"Metric": "Cashflow (Current Period)", "Amount": income - expenses},
-    ]
-
+    # Allocation Data
     allocation_data = calculate_investment_allocation(
         balance_sheet_data,
         categories,
         zero_balance_account_config,
     )
 
-    # Create Retirement Tracker
-    generate_retirement_tracker(retirement_tracker_config)
+    # Account - Amount Table Data
+    category_tables_data = calculate_category_tables_data(
+        balance_sheet_data, categories, zero_balance_account_config
+    )
+
+    # Retirement Tracking Data
+    retirement_tracking_data = calculate_retirement_data(retirement_tracker_config)
+
+    # Individual XIRR Report Data
+    individual_xirr_reports_data = calculate_individual_xirr_report_data(
+        ledger_files, individual_xirr_reports_config
+    )
+
+    # Generate Workbook
+    workbook = xlsxwriter.Workbook(PORTFOLIO_DASHBOARD_FILEPATH)
+
+    # Add layouts
+    layout = {
+        name: workbook.add_format(props)
+        for name, props in dashboard_layout_config.items()
+    }
+
+    # Dashboard Worksheet
+    worksheet = workbook.add_worksheet("Dashboard")
+    worksheet.hide_gridlines(2)
+
+    worksheet.merge_range(
+        first_row=0,
+        first_col=0,
+        last_row=0,
+        last_col=8,
+        data="Portfolio Dashboard",
+        format=layout["title_fmt"],
+    )
+    base_row = 2
 
     # Render first row
     col_gap = 1
     current_row = base_row
 
-    # Summary
+    # Render Summary
     end_row_left, width_left = print_table(
         worksheet=worksheet,
         workbook=workbook,
@@ -235,7 +179,7 @@ if __name__ == "__main__":
         sort=False,
     )
 
-    # Allocation
+    # Render Allocation
     end_row_right, width_right = print_table(
         worksheet=worksheet,
         workbook=workbook,
@@ -249,24 +193,13 @@ if __name__ == "__main__":
     # Next row starts below the tallest of the two
     current_row = max(end_row_left, end_row_right)
 
-    # Render tables
+    # Render Remaining tables
     tables_in_row = 3
     current_col = 0
     tables_in_current_row = 0
     max_row_in_block = current_row
 
-    remaining_tables = []
-
-    for title, prefix in categories.items():
-        data = filter_accounts(balance_sheet_data, prefix, zero_balance_account_config)
-        if not data:
-            continue
-
-        remaining_tables.append(
-            (title, [{"Account": e["account"], "Amount": e["amount"]} for e in data])
-        )
-
-    for title, data in remaining_tables:
+    for title, data in category_tables_data:
         end_row, width = print_table(
             worksheet=worksheet,
             workbook=workbook,
@@ -287,16 +220,18 @@ if __name__ == "__main__":
             current_col = 0
             tables_in_current_row = 0
 
-    for report in individual_xirr_reports:
-        out = calculate_account_metrics(report, ledger_files)
-        ws_xirr = workbook.add_worksheet(report["name"])
+    # Render individual XIRR report on seperate worksheet
+    for report in individual_xirr_reports_data:
+        report_name = report["name"]
+        report_data = report["data"]
+        ws_xirr = workbook.add_worksheet(report_name)
         ws_xirr.hide_gridlines(2)
         print_table(
             worksheet=ws_xirr,
             workbook=workbook,
             layout=layout,
-            title=report["name"],
-            data=out,
+            title=report_name,
+            data=report_data,
             start_row=0,
             start_col=0,
         )

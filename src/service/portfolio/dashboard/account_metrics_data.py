@@ -169,7 +169,19 @@ def compute_for_commodity(commodity, amfi_isin_map, report, ledger_files, today)
     return output
 
 
-def calculate_account_metrics(report, ledger_files):
+def calculate_individual_xirr_report_data(ledger_files, individual_xirr_reports_config):
+    individual_xirr_reports_data = []
+    for report in individual_xirr_reports_config:
+        individual_xirr_reports_data.append(
+            {
+                "name": report["name"],
+                "data": get_account_performance_metrics_data(report, ledger_files),
+            }
+        )
+    return individual_xirr_reports_data
+
+
+def get_account_performance_metrics_data(report, ledger_files):
     today = datetime.today().date()
 
     amfi_isin_map = fetch_amfi_isin_scheme_map()
