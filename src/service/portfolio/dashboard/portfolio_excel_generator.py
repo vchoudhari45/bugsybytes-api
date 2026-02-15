@@ -46,6 +46,8 @@ amount_fields = [
 
 percent_fields = ["%", "XIRR", "ABSOLUTE RETURN"]
 
+link_fields = ["NEWS_LINK"]
+
 
 def print_table(
     worksheet, workbook, layout, title, data, start_row, start_col, sort=True
@@ -60,6 +62,7 @@ def print_table(
     # Normalize field names to uppercase for safe comparison
     amount_fields_upper = {field.upper() for field in amount_fields}
     percent_fields_upper = {field.upper() for field in percent_fields}
+    link_fields_upper = {field.upper() for field in link_fields}
 
     # Extract headers
     headers = list(data[0].keys())
@@ -77,8 +80,18 @@ def print_table(
             value = entry.get(header, "")
             header_upper = header.upper()
 
+            # Link fields
+            if header_upper in link_fields_upper:
+                worksheet.write_url(
+                    row,
+                    start_col + col,
+                    value,
+                    layout.get("link_fmt"),
+                    string="View",
+                )
+
             # Percent fields
-            if header_upper in percent_fields_upper:
+            elif header_upper in percent_fields_upper:
                 worksheet.write(row, start_col + col, value, layout["percent_fmt"])
 
             # Amount fields
@@ -110,6 +123,7 @@ if __name__ == "__main__":
         "individual_xirr_reports"
     ]
     retirement_tracker_config = dashboard_config["dashboard"]["retirement_tracker"]
+    mutual_funds = dashboard_config["dashboard"]["mutual_funds"]
     ledger_files = {LEDGER_ME_MAIN, LEDGER_MOM_MAIN, LEDGER_PAPA_MAIN}
 
     # Balance Sheet data
@@ -148,7 +162,7 @@ if __name__ == "__main__":
 
     # Individual XIRR Report Data
     individual_xirr_reports_data = calculate_individual_xirr_report_data(
-        ledger_files, individual_xirr_reports_config
+        ledger_files, individual_xirr_reports_config, mutual_funds
     )
 
     # Generate Workbook

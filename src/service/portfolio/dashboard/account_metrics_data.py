@@ -93,7 +93,23 @@ def get_metrics(company_id):
         return {}
 
 
-def compute_for_commodity(commodity, amfi_isin_map, report, ledger_files, today):
+def get_google_finance_link(is_mf, google_finance_code, commodity):
+    if is_mf:
+        return f"https://www.google.com/finance/quote/{google_finance_code}:MUTF_IN"
+    else:
+        return f"https://www.google.com/finance/quote/{commodity}:NSE"
+
+
+def find_fund_by_isin(mutual_funds, account_name, isin):
+    for isin_key, fund in mutual_funds[account_name].items():
+        if isin.lower() == isin_key.lower():
+            return fund
+    return None
+
+
+def compute_for_commodity(
+    commodity, amfi_isin_map, report, ledger_files, today, mutual_funds, account_name
+):
     display_name = amfi_isin_map.get(commodity, commodity)
 
     # Get cashflow for each commodity using ledger register command
@@ -159,8 +175,14 @@ def compute_for_commodity(commodity, amfi_isin_map, report, ledger_files, today)
     output = {"SYMBOL": commodity}
 
     # adding display name for mutual fund
-    if display_name.lower() != commodity.lower():
+    is_mf = display_name.lower() != commodity.lower()
+    google_finance_code = ""
+    if is_mf:
         output["NAME"] = display_name
+        fund = find_fund_by_isin(mutual_funds, account_name, commodity)
+        fl_number = fund["fl_number"] if fund is not None else ""
+        google_finance_code = fund["google_finance_code"] if fund is not None else ""
+        output["FL NUMBER"] = fl_number
 
     output.update(
         {
@@ -172,14 +194,19 @@ def compute_for_commodity(commodity, amfi_isin_map, report, ledger_files, today)
         }
     )
     output.update(metrics)
+    output.update(
+        {"NEWS_LINK": get_google_finance_link(is_mf, google_finance_code, commodity)}
+    )
 
     return output
 
 
-def calculate_individual_xirr_report_data(ledger_files, individual_xirr_reports_config):
+def calculate_individual_xirr_report_data(
+    ledger_files, individual_xirr_reports_config, mutual_funds
+):
     individual_xirr_reports_data = []
     for report in individual_xirr_reports_config:
-        data = get_account_performance_metrics_data(report, ledger_files)
+        data = get_account_performance_metrics_data(report, ledger_files, mutual_funds)
         data.sort(key=lambda x: x.get("XIRR", 0), reverse=False)
         individual_xirr_reports_data.append(
             {
@@ -190,7 +217,7 @@ def calculate_individual_xirr_report_data(ledger_files, individual_xirr_reports_
     return individual_xirr_reports_data
 
 
-def get_account_performance_metrics_data(report, ledger_files):
+def get_account_performance_metrics_data(report, ledger_files, mutual_funds):
     today = datetime.today().date()
 
     amfi_isin_map = fetch_amfi_isin_scheme_map()
@@ -212,6 +239,8 @@ def get_account_performance_metrics_data(report, ledger_files):
             report=report,
             ledger_files=ledger_files,
             today=today,
+            mutual_funds=mutual_funds,
+            account_name=report["account_name"],
         )
         with concurrent.futures.ThreadPoolExecutor() as executor:
             results = executor.map(compute_func, filtered_commodities)
