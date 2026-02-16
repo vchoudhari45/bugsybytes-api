@@ -1,15 +1,10 @@
-import sys
 from datetime import date, timedelta
 
-import numpy as np
-import pandas as pd
 from dateutil.relativedelta import relativedelta
-from sortedcontainers import SortedDict
 
 from src.data.config import QUANTITY_LAG_DAYS
 from src.service.util.date_util import to_date
 from src.service.util.holiday_calculator import next_market_day
-from src.service.util.xirr_calculator import forward_xirr, xirr
 
 
 def market_shifted(dt: date):
@@ -29,6 +24,7 @@ def generate_coupon_dates(start_date, maturity_date, coupon_frequency):
     year = start_date.year
 
     first_coupon_date = date(year, coupon_month, coupon_day)
+    first_coupon_date -= relativedelta(months=months_per_coupon)
     while first_coupon_date <= start_date:
         first_coupon_date += relativedelta(months=months_per_coupon)
 
@@ -110,158 +106,3 @@ def build_gsec_cashflows(row):
     cashflows = [cf[d] for d in dates]
 
     return dates, cashflows
-
-
-def generate_cashflows(joined_df):
-    xirr_per_instrument = {}
-    forward_xirr_per_instrument = {}
-    portfolio_investment = 0
-    investment_by_symbol = {}
-
-    symbol_to_cashflow_map = {}
-    symbol_to_coupon_meta_map = {}
-    for _, row in joined_df.iterrows():
-        event_type = row["EVENT TYPE"].replace(" ", "").upper()
-        symbol = row["SYMBOL"]
-
-        event_date = to_date(row["EVENT DATE"])
-        maturity_date = to_date(row["MATURITY DATE"])
-
-        if event_date > maturity_date:
-            print(f"Invalid event_date > maturity_date for {symbol}")
-            sys.exit(1)
-
-        if symbol not in symbol_to_coupon_meta_map:
-            symbol_to_coupon_meta_map[symbol] = {
-                "isin": row["ISIN"],
-                "coupon_rate": float(row["COUPON RATE"]),
-                "coupon_frequency": int(row["COUPON FREQUENCY"]),
-                "face_value": float(row["FACE VALUE"]),
-                "maturity_date": maturity_date,
-            }
-
-        cf = symbol_to_cashflow_map.setdefault(symbol, SortedDict())
-
-        if event_date not in cf:
-            cf[event_date] = empty_txn_slot()
-
-        units = float(row["UNITS"])
-        price = float(row["PRICE PER UNIT"])
-
-        if event_type == "BUY":
-            cf[event_date]["transaction_amount"] -= units * price
-
-            qty_date = next_market_day(event_date, QUANTITY_LAG_DAYS)
-            cf.setdefault(qty_date, empty_txn_slot())["quantity"] += units
-
-            portfolio_investment += units * price
-            investment_by_symbol[symbol] = investment_by_symbol.get(symbol, 0) + (
-                units * price
-            )
-
-        elif event_type == "SELL":
-            cf[event_date]["quantity"] -= units
-            cf[event_date]["transaction_amount"] += units * price
-
-            portfolio_investment -= units * price
-            investment_by_symbol[symbol] = investment_by_symbol.get(symbol, 0) - (
-                units * price
-            )
-
-        else:
-            print(f"Invalid EVENT TYPE for {symbol}")
-            sys.exit(1)
-
-    # --------------------------------------------------------
-    # ADD COUPONS & MATURITY
-    # --------------------------------------------------------
-
-    for symbol, cf in symbol_to_cashflow_map.items():
-        first_date = min(cf.keys())
-
-        if cf[first_date]["quantity"] < 0:
-            print(f"Negative initial quantity for {symbol}")
-            sys.exit(1)
-
-        meta = symbol_to_coupon_meta_map[symbol]
-
-        for d in generate_coupon_dates(
-            first_date, meta["maturity_date"], meta["coupon_frequency"]
-        ):
-            cf.setdefault(d, empty_coupon_slot())
-
-        cf.setdefault(
-            market_shifted(meta["maturity_date"]),
-            {"quantity": 0, "coupon_date": True, "maturity": True},
-        )
-
-        apply_coupon_and_principal(
-            cf,
-            meta["coupon_rate"],
-            meta["coupon_frequency"],
-            meta["face_value"],
-        )
-
-    # --------------------------------------------------------
-    # BUILD CASHFLOW DATAFRAME
-    # --------------------------------------------------------
-
-    all_dates = sorted(
-        {pd.to_datetime(dt) for cf in symbol_to_cashflow_map.values() for dt in cf}
-    )
-
-    cashflow_df = pd.DataFrame(index=all_dates)
-
-    for symbol, cf in symbol_to_cashflow_map.items():
-        series = pd.Series(
-            {pd.to_datetime(dt): cf[dt].get("total_cashflow", 0) for dt in cf}
-        )
-        cashflow_df[symbol] = series.reindex(all_dates, fill_value=0)
-
-    cashflow_df = cashflow_df.reset_index().rename(columns={"index": "DATE"})
-    cashflow_df["TOTAL CASHFLOW"] = cashflow_df.drop(columns=["DATE"]).sum(axis=1)
-
-    # --------------------------------------------------------
-    # XIRR CALCULATIONS
-    # --------------------------------------------------------
-
-    for symbol in symbol_to_cashflow_map:
-        try:
-            xirr_per_instrument[symbol] = xirr(cashflow_df["DATE"], cashflow_df[symbol])
-            forward_xirr_per_instrument[symbol] = forward_xirr(
-                cashflow_df["DATE"],
-                cashflow_df[symbol],
-                investment_by_symbol[symbol],
-            )
-        except Exception:
-            xirr_per_instrument[symbol] = np.nan
-            forward_xirr_per_instrument[symbol] = np.nan
-
-    cashflow_df.attrs["PORTFOLIO INVESTMENT"] = portfolio_investment
-    cashflow_df.attrs["PORTFOLIO XIRR"] = xirr(
-        cashflow_df["DATE"], cashflow_df["TOTAL CASHFLOW"]
-    )
-    cashflow_df.attrs["PORTFOLIO FORWARD XIRR"] = forward_xirr(
-        cashflow_df["DATE"],
-        cashflow_df["TOTAL CASHFLOW"],
-        portfolio_investment,
-    )
-
-    cashflow_metadata_df = pd.DataFrame(
-        {
-            "SYMBOL": list(xirr_per_instrument.keys()),
-            "ISIN": [symbol_to_coupon_meta_map[s]["isin"] for s in xirr_per_instrument],
-            "INDIVIDUAL XIRR": [
-                xirr_per_instrument[s] * 100 for s in xirr_per_instrument
-            ],
-            "INDIVIDUAL FORWARD XIRR": [
-                forward_xirr_per_instrument[s] * 100 for s in xirr_per_instrument
-            ],
-            "INVESTMENT": [investment_by_symbol[s] for s in xirr_per_instrument],
-        }
-    )
-    cashflow_metadata_df = cashflow_metadata_df.sort_values(
-        by="INDIVIDUAL XIRR", ascending=False
-    )
-
-    return cashflow_df, cashflow_metadata_df

@@ -1,4 +1,5 @@
 import sys
+from datetime import date, datetime
 
 import xlsxwriter
 import yaml
@@ -18,6 +19,9 @@ from src.service.portfolio.dashboard.dashboard_data import (
     calculate_category_tables_data,
     calculate_investment_allocation,
     calculate_summary_data,
+)
+from src.service.portfolio.dashboard.gsec_data import (
+    calculate_gsec_individual_xirr_report_data,
 )
 from src.service.portfolio.dashboard.retirement_data import (
     calculate_retirement_data,
@@ -98,6 +102,14 @@ def print_table(
             elif header_upper in amount_fields_upper:
                 worksheet.write(row, start_col + col, value, layout["amount_fmt"])
 
+            elif isinstance(value, (datetime, date)):
+                worksheet.write_datetime(
+                    row,
+                    start_col + col,
+                    datetime.combine(value, datetime.min.time()),
+                    layout["date_fmt"],
+                )
+
             # Default format
             else:
                 worksheet.write(row, start_col + col, value, layout["account_fmt"])
@@ -121,6 +133,9 @@ if __name__ == "__main__":
     categories = dashboard_config["dashboard"]["categories"]
     individual_xirr_reports_config = dashboard_config["dashboard"][
         "individual_xirr_reports"
+    ]
+    gsec_individual_xirr_reports_config = dashboard_config["dashboard"][
+        "gsec_individual_xirr_reports"
     ]
     retirement_tracker_config = dashboard_config["dashboard"]["retirement_tracker"]
     mutual_funds = dashboard_config["dashboard"]["mutual_funds"]
@@ -163,6 +178,11 @@ if __name__ == "__main__":
     # Individual XIRR Report Data
     individual_xirr_reports_data = calculate_individual_xirr_report_data(
         ledger_files, individual_xirr_reports_config, mutual_funds
+    )
+
+    # GSec Individual XIRR Report Data
+    gsec_individual_xirr_reports_data = calculate_gsec_individual_xirr_report_data(
+        ledger_files, gsec_individual_xirr_reports_config
     )
 
     # Generate Workbook
@@ -250,6 +270,33 @@ if __name__ == "__main__":
             layout=layout,
             title=report_name,
             data=report_data,
+            start_row=0,
+            start_col=0,
+        )
+
+    # Render GSEC individual XIRR report on seperate worksheet
+    for report in gsec_individual_xirr_reports_data:
+        report_name = report["name"]
+        cashflow_data = report["cashflow_data"]
+        ws_cashflow = workbook.add_worksheet(report_name)
+        print_table(
+            worksheet=ws_cashflow,
+            workbook=workbook,
+            layout=layout,
+            title=report_name,
+            data=cashflow_data,
+            start_row=0,
+            start_col=0,
+        )
+        report_name_xirr = f"{report["name"]} XIRR Summary"
+        xirr_data = report["xirr_data"]
+        ws_xirr = workbook.add_worksheet(report_name_xirr)
+        print_table(
+            worksheet=ws_xirr,
+            workbook=workbook,
+            layout=layout,
+            title=report_name_xirr,
+            data=xirr_data,
             start_row=0,
             start_col=0,
         )

@@ -1,9 +1,7 @@
 import math
 import warnings
-from datetime import date
 
 import numpy as np
-import pandas as pd
 from scipy.optimize import newton
 
 from src.data.config import DEFAULT_TARGET_XIRR
@@ -41,50 +39,6 @@ def xirr(dates, cashflows, guess=0.1):
                 return newton(func=npv, x0=-0.5, fprime=d_npv, maxiter=200)
             except RuntimeError:
                 # If still fails, return NaN (better than 0, as 0 implies break-even)
-                return 0
-
-
-def forward_xirr(dates, cashflows, portfolio_value, guess=0.1):
-    """
-    Calculate forward XIRR from start_date onward using:
-    - negative cashflow = portfolio_value on start_date
-    - all future cashflows (d > start_date)
-    """
-    start_date = date.today()
-
-    # Select future cashflows
-    future = [(d, cf) for d, cf in zip(dates, cashflows) if d.date() > start_date]
-
-    if len(future) == 0:
-        return float("nan")
-
-    # Insert portfolio investment as of today
-    new_dates = [start_date] + [d for d, _ in future]
-    new_cashflows = [-portfolio_value] + [cf for _, cf in future]
-
-    # Convert to day counts (same way as xirr)
-    new_dates = pd.to_datetime(new_dates)
-    days = np.array([(d - new_dates[0]).days for d in new_dates], dtype=float)
-
-    def npv(rate):
-        with np.errstate(invalid="ignore", divide="ignore"):
-            return np.sum(new_cashflows / (1 + rate) ** (days / 365.0))
-
-    def d_npv(rate):
-        with np.errstate(invalid="ignore", divide="ignore"):
-            return np.sum(
-                -(days / 365.0) * new_cashflows / (1 + rate) ** (days / 365.0 + 1)
-            )
-
-    try:
-        return newton(func=npv, x0=guess, fprime=d_npv, maxiter=200)
-    except RuntimeError:
-        try:
-            return newton(func=npv, x0=0.2, fprime=d_npv, maxiter=200)
-        except RuntimeError:
-            try:
-                return newton(func=npv, x0=-0.5, fprime=d_npv, maxiter=200)
-            except RuntimeError:
                 return 0
 
 
