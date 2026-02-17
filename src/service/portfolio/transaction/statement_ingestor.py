@@ -2,7 +2,7 @@ import csv
 import sys
 from datetime import date, datetime
 
-from src.data.config import SCRIP_CODE_TO_TICKER_LOOKUP, STATEMENTS_ME_DIR
+from src.data.config import SCRIP_CODE_TO_TICKER_LOOKUP, ADDITIONAL_STATEMENTS_DIR
 from src.service.portfolio.transaction.statement_rule_engine import create_transaction
 from src.service.util.csv_util import non_comment_lines, normalized_dict_reader
 from src.service.util.date_util import parse_date
@@ -11,7 +11,7 @@ from src.service.util.date_util import parse_date
 def ingest_zb_tb_statements(statement_type, filename, who):
     new_transactions = []
 
-    for file in STATEMENTS_ME_DIR.glob(f"{filename}.csv"):
+    for file in ADDITIONAL_STATEMENTS_DIR.glob(f"{filename}.csv"):
         with file.open(encoding="utf-8") as f:
             reader = csv.DictReader(non_comment_lines(f), delimiter="\t")
 
@@ -70,7 +70,7 @@ def ingest_zb_tb_statements(statement_type, filename, who):
 def ingest_zb_lg_statements(statement_type, filename, who):
     new_transactions = []
 
-    for file in STATEMENTS_ME_DIR.glob(f"{filename}.csv"):
+    for file in ADDITIONAL_STATEMENTS_DIR.glob(f"{filename}.csv"):
         with file.open(encoding="utf-8") as f:
             reader = csv.DictReader(non_comment_lines(f), delimiter="\t")
 
@@ -129,7 +129,7 @@ SCRIP_LOOKUP = load_scrip_lookup()
 def ingest_ub_tb_statements(statement_type, filename, who):
     new_transactions = []
 
-    for file in STATEMENTS_ME_DIR.glob(f"{filename}.csv"):
+    for file in ADDITIONAL_STATEMENTS_DIR.glob(f"{filename}.csv"):
         with file.open(encoding="utf-8") as f:
             reader = csv.DictReader(non_comment_lines(f), delimiter="\t")
 
@@ -178,7 +178,7 @@ def ingest_ub_tb_statements(statement_type, filename, who):
 def ingest_ub_lg_statements(statement_type, filename, who):
     new_transactions = []
 
-    for file in STATEMENTS_ME_DIR.glob(f"{filename}.csv"):
+    for file in ADDITIONAL_STATEMENTS_DIR.glob(f"{filename}.csv"):
         with file.open(encoding="utf-8") as f:
             reader = csv.DictReader(non_comment_lines(f), delimiter="\t")
 
@@ -219,7 +219,7 @@ def ingest_ub_lg_statements(statement_type, filename, who):
 def ingest_ks_statements(statement_type, filename, who):
     new_transactions = []
 
-    for file in STATEMENTS_ME_DIR.glob(f"{filename}.csv"):
+    for file in ADDITIONAL_STATEMENTS_DIR.glob(f"{filename}.csv"):
         with file.open(encoding="utf-8") as f:
             reader = csv.DictReader(non_comment_lines(f))
 
@@ -255,7 +255,7 @@ def ingest_ks_statements(statement_type, filename, who):
 def ingest_hs_statements(statement_type, filename, who):
     new_transactions = []
 
-    for file in STATEMENTS_ME_DIR.glob(f"{filename}.csv"):
+    for file in ADDITIONAL_STATEMENTS_DIR.glob(f"{filename}.csv"):
         with file.open(encoding="utf-8") as f:
             reader = normalized_dict_reader(non_comment_lines(f))
 
@@ -289,7 +289,7 @@ def ingest_hs_statements(statement_type, filename, who):
 
 def ingest_is_statements(statement_type, filename, who):
     new_transactions = []
-    for file in STATEMENTS_ME_DIR.glob(f"{filename}.csv"):
+    for file in ADDITIONAL_STATEMENTS_DIR.glob(f"{filename}.csv"):
         with file.open(encoding="utf-8") as f:
             reader = normalized_dict_reader(non_comment_lines(f), delimiter="\t")
 

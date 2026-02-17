@@ -69,12 +69,13 @@ def run_ledger_cli_command(cmd):
 
 def parse_ledger_cli_commodities_output(output):
     parsed_lines = []
-    lines = output.splitlines()
-    for line in lines:
+    for line in output.splitlines():
         line = line.strip().replace('"', "")
         if not line:
             continue
-        parsed_lines.append(line)
+        # Exclude INR and USD
+        if line not in {"INR", "USD"}:
+            parsed_lines.append(line)
     return parsed_lines
 
 

@@ -21,9 +21,7 @@ DEFAULT_TARGET_XIRR = 0.0801
 STATEMENTS_INGESTOR_RULES_LOOKUP = (
     BASE_DIR / "portfolio/lookup/statement_ingestor_rules.yaml"
 )
-STATEMENTS_ME_DIR = BASE_DIR / "portfolio/statements/me/additions/"
-STATEMENTS_MOM_DIR = BASE_DIR / "portfolio/statements/mom/additions/"
-STATEMENTS_PAPA_DIR = BASE_DIR / "portfolio/statements/papa/additions/"
+ADDITIONAL_STATEMENTS_DIR = BASE_DIR / "portfolio/statements/additions/"
 SCRIP_CODE_TO_TICKER_LOOKUP = (
     BASE_DIR / "portfolio/lookup/scrip_code_to_ticker_lookup.csv"
 )
@@ -36,10 +34,9 @@ LEDGER_PAPA_DIR = BASE_DIR / "portfolio/ledger-papa/"
 TRANSACTION_ME_DIR = BASE_DIR / "portfolio/transactions-me/"
 TRANSACTION_MOM_DIR = BASE_DIR / "portfolio/transactions-mom/"
 TRANSACTION_PAPA_DIR = BASE_DIR / "portfolio/transactions-papa/"
-# Portfolio: Dashboard
-DASHBOARD_CONFIG_PATH = BASE_DIR / "portfolio/dashboard/dashboard_config.yaml"
+DASHBOARD_CONFIG_PATH = BASE_DIR / "portfolio/lookup/dashboard_config.yaml"
 DASHBOARD_LAYOUT_CONFIG_PATH = (
-    BASE_DIR / "portfolio/dashboard/dashboard_layout_config.yaml"
+    BASE_DIR / "portfolio/lookup/dashboard_layout_config.yaml"
 )
 PORTFOLIO_DASHBOARD_FILEPATH = BASE_DIR / "portfolio/portfolio_dashboard.xlsx"
 

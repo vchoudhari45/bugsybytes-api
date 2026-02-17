@@ -101,7 +101,7 @@ def get_google_finance_link(is_mf, google_finance_code, commodity):
 
 
 def find_fund_by_isin(mutual_funds, account_name, isin):
-    for isin_key, fund in mutual_funds[account_name].items():
+    for isin_key, fund in mutual_funds.get(account_name, {}).items():
         if isin.lower() == isin_key.lower():
             return fund
     return None
@@ -121,7 +121,7 @@ def compute_for_commodity(
         report["balance"], ledger_files, commodity, "balance"
     )
     if current_value and len(current_value) > 1:
-        print("Can't have multiple values for single commodity ")
+        print("Error: Can't have multiple values for single commodity ")
         sys.exit(1)
 
     cashflow_dates = []
@@ -140,18 +140,18 @@ def compute_for_commodity(
         cashflow.append(amount)
         investment_amount += amount
 
-    # ignore investment which don't have any investments anymore
-    investment_amount = abs(investment_amount)
-    if investment_amount <= 5:
-        return None
-
     # add investment_amount_current_value to cashflow
     investment_amount_current_value = (
         float(current_value[0]["amount"]) if current_value else 0.0
     )
-    if investment_amount_current_value != 0:
-        cashflow_dates.append(today)
-        cashflow.append(investment_amount_current_value)
+
+    # ignore investment which don't have any investments anymore
+    investment_amount = abs(investment_amount)
+    if investment_amount <= 5 or investment_amount_current_value <= 5:
+        return None
+
+    cashflow_dates.append(today)
+    cashflow.append(investment_amount_current_value)
 
     # Calculate XIRR
     min_date = min(cashflow_dates)
@@ -180,8 +180,8 @@ def compute_for_commodity(
     if is_mf:
         output["NAME"] = display_name
         fund = find_fund_by_isin(mutual_funds, account_name, commodity)
-        fl_number = fund["fl_number"] if fund is not None else ""
-        google_finance_code = fund["google_finance_code"] if fund is not None else ""
+        fl_number = fund.get("fl_number", "") if fund else ""
+        google_finance_code = fund.get("google_finance_code", "") if fund else ""
         output["FL NUMBER"] = fl_number
 
     output.update(
@@ -227,12 +227,9 @@ def get_account_performance_metrics_data(report, ledger_files, mutual_funds):
         report["list_commodity"], ledger_files, None, "commodities"
     )
 
-    # Filter commodities
-    filtered_commodities = [c for c in commodities if c != "INR"]
-
     # Parallelize computation for each commodity
     xirr_output = []
-    if filtered_commodities:
+    if commodities:
         compute_func = partial(
             compute_for_commodity,
             amfi_isin_map=amfi_isin_map,
@@ -243,7 +240,7 @@ def get_account_performance_metrics_data(report, ledger_files, mutual_funds):
             account_name=report["account_name"],
         )
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            results = executor.map(compute_func, filtered_commodities)
+            results = executor.map(compute_func, commodities)
             xirr_output = [r for r in results if r is not None]
 
     # Sort by SYMBOL

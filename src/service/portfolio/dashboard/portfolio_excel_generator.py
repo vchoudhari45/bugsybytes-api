@@ -287,7 +287,7 @@ if __name__ == "__main__":
             start_row=0,
             start_col=0,
         )
-        report_name_xirr = f"{report["name"]} XIRR Summary"
+        report_name_xirr = f"{report["name"]} Summary"
         xirr_data = report["xirr_data"]
         ws_xirr = workbook.add_worksheet(report_name_xirr)
         print_table(

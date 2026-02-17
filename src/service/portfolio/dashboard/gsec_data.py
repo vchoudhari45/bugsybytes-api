@@ -183,12 +183,10 @@ def generate_gsec_portfolio_df(ledger_files, report):
     commodities = get_ledger_cli_output_by_config(
         report["list_commodity"], ledger_files, None, "commodities"
     )
-    # Filter commodities
-    filtered_commodities = [c for c in commodities if c != "INR"]
 
     # Parallelize computation for each commodity
     xirr_output = []
-    if filtered_commodities:
+    if commodities:
         compute_func = partial(
             compute_for_commodity,
             report=report,
@@ -196,7 +194,7 @@ def generate_gsec_portfolio_df(ledger_files, report):
             account_name=report["account_name"],
         )
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            results = executor.map(compute_func, filtered_commodities)
+            results = executor.map(compute_func, commodities)
             xirr_output = [r for r in results if r is not None]
 
     return xirr_output
