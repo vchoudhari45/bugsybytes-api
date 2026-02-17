@@ -46,8 +46,7 @@ uvicorn src.main:app --reload
 
 # GSEC Trackers
 # export UPSTOX_ACCESS_TOKEN
-python -m src.service.gsec.market_feed_tracker --target_xirr=0.0801
-python -m src.service.gsec.portfolio_tracker
+python -m src.service.gsec_tracker --target_xirr=0.0801
 
 # Nifty 50 Trackers
 python -m src.service.nifty50.portfolio_tracker

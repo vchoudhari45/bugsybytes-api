@@ -263,7 +263,6 @@ if __name__ == "__main__":
         report_name = report["name"]
         report_data = report["data"]
         ws_xirr = workbook.add_worksheet(report_name)
-        ws_xirr.hide_gridlines(2)
         print_table(
             worksheet=ws_xirr,
             workbook=workbook,
@@ -303,7 +302,6 @@ if __name__ == "__main__":
 
     # Render retirement tracking data
     ws_retirement = workbook.add_worksheet("Retirement")
-    ws_retirement.hide_gridlines(2)
     print_table(
         worksheet=ws_retirement,
         workbook=workbook,

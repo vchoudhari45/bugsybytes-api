@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from typing import List, Tuple
 
 from dateutil.relativedelta import relativedelta
 
@@ -74,16 +75,21 @@ def apply_coupon_and_principal(cf, coupon_rate, coupon_frequency, face_value):
         )
 
 
-def build_gsec_cashflows(row):
+def build_gsec_cashflows(
+    maturity_date: str,
+    coupon_rate: float,
+    coupon_frequency: int = 2,
+    face_value: float = 100.0,
+) -> Tuple[List[date], List[float]]:
     """
     Builds date-sorted cashflows for a G-Sec.
     Initial cashflow amount is 0 and must be replaced by price.
     """
 
-    maturity_date = to_date(row["MATURITY DATE"])
-    coupon_rate = row["COUPON RATE"] / 100
-    coupon_frequency = 2
-    face_value = 100
+    # Normalize maturity_date (expects ISO format string or any pandas-parsable string)
+    maturity_date = to_date(maturity_date)
+
+    coupon_rate = coupon_rate / 100
 
     trade_date = date.today()
     settlement_date = market_shifted(trade_date + timedelta(days=QUANTITY_LAG_DAYS))
@@ -97,10 +103,12 @@ def build_gsec_cashflows(row):
     coupon_amount = face_value * coupon_rate / coupon_frequency
 
     for d in coupon_dates:
-        cf[d] = cf.get(d, 0) + coupon_amount
+        cf[d] = cf.get(d, 0.0) + coupon_amount
 
     shifted_maturity = market_shifted(maturity_date)
-    cf[shifted_maturity] = cf.get(shifted_maturity, 0) + coupon_amount + face_value
+
+    # Final coupon + principal
+    cf[shifted_maturity] = cf.get(shifted_maturity, 0.0) + coupon_amount + face_value
 
     dates = sorted(cf.keys())
     cashflows = [cf[d] for d in dates]
