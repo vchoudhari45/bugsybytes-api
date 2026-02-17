@@ -5,14 +5,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 # Gsec Configs
 NSE_GSEC_LIVE_DATA_DIR = BASE_DIR / "gsec/nse_live_data/"
-GSEC_MATURITY_DATE_OVERRIDE_FILE = (
-    BASE_DIR / "gsec/lookup/gsec_maturity_date_override_file.csv"
-)
-GSEC_PORTFOLIO_FILE = BASE_DIR / "gsec/lookup/gsec_portfolio.csv"
-GSEC_PORTFOLIO_CASHFLOW_FILE = BASE_DIR / "gsec/lookup/gsec_portfolio_cashflow.csv"
-GSEC_PORTFOLIO_CASHFLOW_BY_YEAR_FILE = (
-    BASE_DIR / "gsec/lookup/gsec_portfolio_cashflow_by_year.csv"
-)
+GSEC_DETAILS_FILE = BASE_DIR / "gsec/lookup/gsec_details_file.csv"
 
 # Nifty50 Configs
 NSE_NIFTY50_PRE_MARKET_DATA_DIR = BASE_DIR / "nifty_50/nse_pre_market_data/"

@@ -1,54 +1,90 @@
+import sys
+
 import pandas as pd
+
+from src.data.config import RED_BOLD, RESET
 
 
 def validate_coupon_rate_match(
-    symbol_coupon: float,
-    provided_coupon: float,
     symbol: str,
+    provided_coupon,
+    derived_coupon,
     isin: str,
-) -> float:
+):
     """
-    Validates that coupon extracted from symbol
-    matches provided coupon rate.
-
-    Returns validated coupon rate.
-    Raises ValueError if mismatch.
+    Rules:
+    1. Both provided and derived can be None/NaN → OK
+    2. Only one missing → FAIL
+    3. Both present but mismatch → FAIL
     """
 
-    if provided_coupon is None:
-        return symbol_coupon
+    provided_missing = pd.isna(provided_coupon)
+    derived_missing = pd.isna(derived_coupon)
 
-    if symbol_coupon is None:
-        raise ValueError(f"Missing coupon from symbol for {symbol} ({isin})")
+    # ✅ Both missing → allowed
+    if provided_missing and derived_missing:
+        return
 
-    if round(symbol_coupon, 4) != round(provided_coupon, 4):
-        raise ValueError(
-            f"Coupon mismatch for {symbol} ({isin}) | "
-            f"Symbol: {symbol_coupon} | Provided: {provided_coupon}"
+    # ❌ Only one missing
+    if provided_missing != derived_missing:
+        print(f"\n{RED_BOLD}❌ COUPON PRESENCE MISMATCH ❌{RESET}")
+        print(
+            f"SYMBOL: {symbol} | ISIN: {isin} | "
+            f"Provided Missing: {provided_missing} | "
+            f"Derived Missing: {derived_missing}"
         )
+        sys.exit(1)
 
-    return symbol_coupon
+    # ❌ Both present but mismatch
+    if round(float(provided_coupon), 4) != round(float(derived_coupon), 4):
+        print(f"\n{RED_BOLD}❌ COUPON MISMATCH ❌{RESET}")
+        print(
+            f"SYMBOL: {symbol} | ISIN: {isin} | "
+            f"Provided: {provided_coupon} | "
+            f"Derived: {derived_coupon}"
+        )
+        sys.exit(1)
 
 
 def validate_maturity_year_consistency(
     symbol: str,
-    provided_maturity: str,
-    derived_maturity: pd.Timestamp,
+    provided_maturity,
+    derived_maturity,
     isin: str,
 ):
     """
-    Validates that maturity year from symbol
-    matches provided maturity date year.
+    Rules:
+    1. Both provided and derived can be None/NaT → OK
+    2. Only one missing → FAIL
+    3. Both present but year mismatch → FAIL
     """
 
-    if not provided_maturity:
-        raise ValueError(f"Missing maturity date for {symbol} ({isin})")
+    provided_missing = pd.isna(provided_maturity)
+    derived_missing = pd.isna(derived_maturity)
 
+    # ✅ Both missing → allowed
+    if provided_missing and derived_missing:
+        return
+
+    # ❌ Only one missing
+    if provided_missing != derived_missing:
+        print(f"\n{RED_BOLD}❌ MATURITY PRESENCE MISMATCH ❌{RESET}")
+        print(
+            f"SYMBOL: {symbol} | ISIN: {isin} | "
+            f"Provided Missing: {provided_missing} | "
+            f"Derived Missing: {derived_missing}"
+        )
+        sys.exit(1)
+
+    # ❌ Both present but year mismatch
     provided_year = pd.to_datetime(provided_maturity).year
-    derived_year = derived_maturity.year
+    derived_year = pd.to_datetime(derived_maturity).year
 
     if provided_year != derived_year:
-        raise ValueError(
-            f"Maturity year mismatch for {symbol} ({isin}) | "
-            f"Provided: {provided_year} | Derived: {derived_year}"
+        print(f"\n{RED_BOLD}❌ MATURITY YEAR MISMATCH ❌{RESET}")
+        print(
+            f"SYMBOL: {symbol} | ISIN: {isin} | "
+            f"Provided: {provided_year} | "
+            f"Derived: {derived_year}"
         )
+        sys.exit(1)

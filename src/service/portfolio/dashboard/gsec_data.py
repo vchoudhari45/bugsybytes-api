@@ -6,7 +6,7 @@ from functools import partial
 import pandas as pd
 from sortedcontainers import SortedDict
 
-from src.data.config import GSEC_MATURITY_DATE_OVERRIDE_FILE, QUANTITY_LAG_DAYS
+from src.data.config import GSEC_DETAILS_FILE, QUANTITY_LAG_DAYS
 from src.service.portfolio.ledger.ledger_cli_output_parser import (
     get_ledger_cli_output_by_config,
 )
@@ -19,7 +19,7 @@ from src.service.util.cashflow_generator import (
 from src.service.util.holiday_calculator import next_market_day
 from src.service.util.xirr_calculator import xirr
 
-gsec_maturity_date_override_df = pd.read_csv(GSEC_MATURITY_DATE_OVERRIDE_FILE)
+gsec_maturity_date_override_df = pd.read_csv(GSEC_DETAILS_FILE)
 gsec_maturity_date_override_df.columns = (
     gsec_maturity_date_override_df.columns.str.strip()
 )
@@ -78,7 +78,7 @@ def compute_for_commodity(commodity, report, ledger_files, account_name):
         total_quantity += quantity
 
     if commodity not in gsec_maturity_date_override_df.index:
-        print(f"G-Sec '{commodity}' not found in GSEC_MATURITY_DATE_OVERRIDE_FILE.")
+        print(f"G-Sec '{commodity}' not found in GSEC_DETAILS_FILE.")
         sys.exit(1)
 
     # generate coupon interest cashflow
