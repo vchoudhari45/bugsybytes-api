@@ -184,8 +184,8 @@ def ingest_zb_tb_statements(statement_type, filename, who):
 
                 # Series
                 series = row.get("series", "").strip().upper()
-                if series in ("GS", "SG"):
-                    name = "GSec"
+                if series in ("GS", "SG", "G"):
+                    name = f"GSec {symbol}"
                 else:
                     name = row.get("symbol", "").strip()
 
@@ -199,9 +199,9 @@ def ingest_zb_tb_statements(statement_type, filename, who):
                 # Remark
                 trade_type = row.get("trade_type", "").strip().lower()
                 if trade_type == "buy":
-                    remark = f"Bought {name} {symbol}"
+                    remark = f"Bought {name}"
                 else:
-                    remark = f"Sold {name} {symbol}"
+                    remark = f"Sold {name}"
 
                 # FROM_VALUE / TO_VALUE logic
                 if trade_type == "buy":
@@ -352,7 +352,7 @@ def ingest_ub_tb_statements(statement_type, filename, who):
 
                 # ScripCode → Ticker
                 scrip_code = row.get("Scrip Code", "").strip()
-                ticker = SCRIP_LOOKUP.get(scrip_code, "")
+                ticker = SCRIP_LOOKUP.get(scrip_code, "").strip()
 
                 # Remark: Company + BOUGHT/ SOLD
                 side = row.get("Side", "").strip().lower()
@@ -367,9 +367,9 @@ def ingest_ub_tb_statements(statement_type, filename, who):
                 # From / To values
                 if side == "buy":
                     from_value = f"{-net_amount} INR"
-                    to_value = f"{quantity} {ticker}"
+                    to_value = f'{quantity} "{ticker}"'
                 else:
-                    from_value = f"{quantity} {ticker}"
+                    from_value = f'-{quantity} "{ticker}"'
                     to_value = f"{net_amount} INR"
 
                 # Create transaction
@@ -608,55 +608,55 @@ if __name__ == "__main__":
     # date(YYYY, MM, DD)
     d = date(2000, 12, 31)
     # ingest me
-    ingest_statements(statement_type="is", filename="is", who="me", print_after_date=d)
-    ingest_statements(statement_type="hs", filename="hs", who="me", print_after_date=d)
-    ingest_statements(statement_type="ks", filename="ks", who="me", print_after_date=d)
-    ingest_statements(
-        statement_type="ub-lg", filename="ub-lg", who="me", print_after_date=d
-    )
-    ingest_statements(
-        statement_type="ub-tb", filename="ub-tb", who="me", print_after_date=d
-    )
-    ingest_statements(
-        statement_type="zb-lg", filename="zb-lg", who="me", print_after_date=d
-    )
-    ingest_statements(
-        statement_type="zb-tb", filename="zb-tb", who="me", print_after_date=d
-    )
-    ingest_statements(
-        statement_type="zb-tb-mf", filename="zb-tb-mf", who="me", print_after_date=d
-    )
+    # ingest_statements(statement_type="is", filename="is", who="me", print_after_date=d)
+    # ingest_statements(statement_type="hs", filename="hs", who="me", print_after_date=d)
+    # ingest_statements(statement_type="ks", filename="ks", who="me", print_after_date=d)
+    # ingest_statements(
+    #     statement_type="ub-lg", filename="ub-lg", who="me", print_after_date=d
+    # )
+    # ingest_statements(
+    #     statement_type="ub-tb", filename="ub-tb", who="me", print_after_date=d
+    # )
+    # ingest_statements(
+    #     statement_type="zb-lg", filename="zb-lg", who="me", print_after_date=d
+    # )
+    # ingest_statements(
+    #     statement_type="zb-tb", filename="zb-tb", who="me", print_after_date=d
+    # )
+    # ingest_statements(
+    #     statement_type="zb-tb-mf", filename="zb-tb-mf", who="me", print_after_date=d
+    # )
 
     # ingest mom
-    ingest_statements(
-        statement_type="is", filename="is-mom", who="mom", print_after_date=d
-    )
-    ingest_statements(
-        statement_type="zb-lg", filename="zb-lg-mom", who="mom", print_after_date=d
-    )
-    ingest_statements(
-        statement_type="zb-tb", filename="zb-tb-mom", who="mom", print_after_date=d
-    )
-    ingest_statements(
-        statement_type="zb-tb-mf",
-        filename="zb-tb-mf-mom",
-        who="mom",
-        print_after_date=d,
-    )
+    # ingest_statements(
+    #     statement_type="is", filename="is-mom", who="mom", print_after_date=d
+    # )
+    # ingest_statements(
+    #     statement_type="zb-lg", filename="zb-lg-mom", who="mom", print_after_date=d
+    # )
+    # ingest_statements(
+    #     statement_type="zb-tb", filename="zb-tb-mom", who="mom", print_after_date=d
+    # )
+    # ingest_statements(
+    #     statement_type="zb-tb-mf",
+    #     filename="zb-tb-mf-mom",
+    #     who="mom",
+    #     print_after_date=d,
+    # )
 
     # ingest papa
-    ingest_statements(
-        statement_type="is", filename="is-papa", who="papa", print_after_date=d
-    )
+    # ingest_statements(
+    #     statement_type="is", filename="is-papa", who="papa", print_after_date=d
+    # )
     ingest_statements(
         statement_type="gr-lg", filename="gr-lg-papa", who="papa", print_after_date=d
     )
-    ingest_statements(
-        statement_type="gr-tb-mf",
-        filename="gr-tb-mf-papa",
-        who="papa",
-        print_after_date=d,
-    )
-    ingest_statements(
-        statement_type="gr-tb", filename="gr-tb-papa", who="papa", print_after_date=d
-    )
+    # ingest_statements(
+    #     statement_type="gr-tb-mf",
+    #     filename="gr-tb-mf-papa",
+    #     who="papa",
+    #     print_after_date=d,
+    # )
+    # ingest_statements(
+    #     statement_type="gr-tb", filename="gr-tb-papa", who="papa", print_after_date=d
+    # )
