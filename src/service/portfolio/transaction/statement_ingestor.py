@@ -227,6 +227,59 @@ def ingest_zb_tb_statements(statement_type, filename, who):
     return sorted(new_transactions, key=lambda x: x["DATE(YYYY-MM-DD)"])
 
 
+def ingest_zb_tb_mf_statements(statement_type, filename, who):
+    new_transactions = []
+
+    for file in ADDITIONAL_STATEMENTS_DIR.glob(f"{filename}.csv"):
+        with file.open(encoding="utf-8") as f:
+            reader = csv.DictReader(non_comment_lines(f), delimiter="\t")
+
+            for row in reader:
+                # Parse date
+                date = parse_indian_date_format(row.get("trade_date", "").strip())
+
+                # Symbol
+                symbol = row.get("isin", "").strip()
+                name = row.get("symbol", "").strip()
+
+                # Quantity and price
+                quantity = float(row.get("quantity").replace(",", ""))
+                price = float(row.get("price").replace(",", ""))
+
+                # Net amount
+                net_amount = quantity * price
+
+                # Remark
+                trade_type = row.get("trade_type", "").strip().lower()
+                if trade_type == "buy":
+                    remark = f"Bought {name}"
+                else:
+                    remark = f"Sold {name}"
+
+                # FROM_VALUE / TO_VALUE logic
+                if trade_type == "buy":
+                    from_value = f"{-net_amount} INR"
+                    to_value = f'{quantity} "{symbol}"'
+                else:  # sell
+                    from_value = f'-{quantity} "{symbol}"'
+                    to_value = f"{net_amount} INR"
+
+                # Create transaction
+                transaction = create_transaction(
+                    statement_type=statement_type,
+                    who=who,
+                    date=date,
+                    remark=remark,
+                    from_value=from_value,
+                    to_value=to_value,
+                    net_amount=net_amount,
+                )
+
+                new_transactions.append(transaction)
+
+    return sorted(new_transactions, key=lambda x: x["DATE(YYYY-MM-DD)"])
+
+
 def ingest_zb_lg_statements(statement_type, filename, who):
     new_transactions = []
 
@@ -381,7 +434,7 @@ def ingest_ks_statements(statement_type, filename, who):
 
     for file in ADDITIONAL_STATEMENTS_DIR.glob(f"{filename}.csv"):
         with file.open(encoding="utf-8") as f:
-            reader = csv.DictReader(non_comment_lines(f))
+            reader = csv.DictReader(non_comment_lines(f), delimiter="\t")
 
             for row in reader:
                 credit = float(str(row.get("Credit", "")).replace(",", "").strip() or 0)
@@ -525,6 +578,10 @@ def ingest_statements(statement_type, filename, who, print_after_date):
         transactions = ingest_zb_tb_statements(
             statement_type=statement_type, filename=filename, who=who
         )
+    elif statement_type == "zb-tb-mf":
+        transactions = ingest_zb_tb_mf_statements(
+            statement_type=statement_type, filename=filename, who=who
+        )
     elif statement_type == "gr-lg":
         transactions = ingest_gr_lg_statements(
             statement_type=statement_type, filename=filename, who=who
@@ -566,6 +623,9 @@ if __name__ == "__main__":
     ingest_statements(
         statement_type="zb-tb", filename="zb-tb", who="me", print_after_date=d
     )
+    ingest_statements(
+        statement_type="zb-tb-mf", filename="zb-tb-mf", who="me", print_after_date=d
+    )
 
     # ingest mom
     ingest_statements(
@@ -576,6 +636,12 @@ if __name__ == "__main__":
     )
     ingest_statements(
         statement_type="zb-tb", filename="zb-tb-mom", who="mom", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="zb-tb-mf",
+        filename="zb-tb-mf-mom",
+        who="mom",
+        print_after_date=d,
     )
 
     # ingest papa
