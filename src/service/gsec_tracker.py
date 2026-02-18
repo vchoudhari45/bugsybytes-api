@@ -1,6 +1,8 @@
 import argparse
+import json
 import signal
 import sys
+import traceback
 from datetime import datetime
 
 import pandas as pd
@@ -98,9 +100,6 @@ def process_nse_gsec_csv(folder_path, override_file, include_historical=False):
 def enrich_gsec_market_feed(message, nse_gsec_df, target_xirr=DEFAULT_TARGET_XIRR):
     feeds = message.get("feeds", {})
 
-    if not feeds:
-        return pd.DataFrame()
-
     rows = [
         {
             "ISIN": k.replace("NSE_EQ|", ""),
@@ -113,6 +112,15 @@ def enrich_gsec_market_feed(message, nse_gsec_df, target_xirr=DEFAULT_TARGET_XIR
         }
         for k, v in feeds.items()
     ]
+
+    if not rows:
+        empty_df = nse_gsec_df.iloc[:0].copy()
+        empty_df["ASK PRICE"] = pd.NA
+        empty_df["BID PRICE"] = pd.NA
+        empty_df["YTM"] = pd.NA
+        empty_df["XIRR"] = pd.NA
+        empty_df["PRICE FOR TARGET XIRR"] = pd.NA
+        return empty_df
 
     df = nse_gsec_df.merge(pd.DataFrame(rows), on="ISIN", how="inner")
 
@@ -149,8 +157,7 @@ def enrich_gsec_market_feed(message, nse_gsec_df, target_xirr=DEFAULT_TARGET_XIR
     df[["YTM", "XIRR", "PRICE FOR TARGET XIRR"]] = df.apply(
         compute, axis=1, result_type="expand"
     )
-
-    df["BID PRICE"] = pd.to_numeric(df["BID PRICE"], errors="coerce").fillna(0)
+    df["BID PRICE"] = pd.to_numeric(df["BID PRICE"], errors="raise").fillna(0)
 
     return df.sort_values("XIRR", ascending=False).reset_index(drop=True)
 
@@ -167,25 +174,42 @@ args = parser.parse_args()
 
 
 def on_message(message):
-    df = enrich_gsec_market_feed(message, nse_gsec_df, args.target_xirr)
-    df = df[df["XIRR"] > 7].sort_values("XIRR", ascending=False)
+    try:
+        if not message.get("feeds"):
+            # market status message
+            print(
+                "Connected to Upstox, Market Status: ",
+                f"{json.dumps(message["marketInfo"]["segmentStatus"], indent=4)}",
+            )
+            return
 
-    if not df.empty:
-        print("=" * 100)
-        print(
-            df[
-                [
-                    "SYMBOL",
-                    "ISIN",
-                    "YTM",
-                    "XIRR",
-                    "ASK PRICE",
-                    "BID PRICE",
-                    "PRICE FOR TARGET XIRR",
-                ]
-            ].to_string(index=False)
-        )
-        print("=" * 100)
+        df = enrich_gsec_market_feed(message, nse_gsec_df, args.target_xirr)
+        df = df[df["XIRR"] > 7].sort_values("XIRR", ascending=False)
+
+        if not df.empty:
+            print("=" * 100)
+            print(
+                df[
+                    [
+                        "SYMBOL",
+                        "ISIN",
+                        "YTM",
+                        "XIRR",
+                        "ASK PRICE",
+                        "BID PRICE",
+                        "PRICE FOR TARGET XIRR",
+                    ]
+                ].to_string(index=False)
+            )
+            print("=" * 100)
+        else:
+            # print(json.dumps(message, indent=4))
+            # Ignore doesnt' have feeds
+            return
+
+    except Exception as e:
+        print("Exception:", str(e))
+        traceback.print_exc()
 
 
 def signal_handler(sig, frame):
