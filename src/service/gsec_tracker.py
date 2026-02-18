@@ -204,7 +204,7 @@ def on_message(message):
             print("=" * 100)
         else:
             # print(json.dumps(message, indent=4))
-            # Ignore doesnt' have feeds
+            # Ignore doesn't have feeds
             return
 
     except Exception as e:
