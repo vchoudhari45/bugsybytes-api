@@ -1,11 +1,171 @@
 import csv
 import sys
-from datetime import date, datetime
+from datetime import date
 
-from src.data.config import ADDITIONAL_STATEMENTS_DIR, SCRIP_CODE_TO_TICKER_LOOKUP
+import yaml
+
+from src.data.config import (
+    ADDITIONAL_STATEMENTS_DIR,
+    DASHBOARD_CONFIG_PATH,
+    SCRIP_CODE_TO_TICKER_LOOKUP,
+)
 from src.service.portfolio.transaction.statement_rule_engine import create_transaction
 from src.service.util.csv_util import non_comment_lines, normalized_dict_reader
-from src.service.util.date_util import parse_date
+from src.service.util.date_util import parse_indian_date_format
+
+with open(DASHBOARD_CONFIG_PATH, "r") as f:
+    dashboard_config = yaml.safe_load(f)
+mutual_funds_gr_config = dashboard_config["dashboard"]["mutual_funds_gr"]
+
+
+def ingest_gr_lg_statements(statement_type, filename, who):
+    new_transactions = []
+
+    for file in ADDITIONAL_STATEMENTS_DIR.glob(f"{filename}.csv"):
+        with file.open(encoding="utf-8") as f:
+            reader = csv.DictReader(non_comment_lines(f), delimiter="\t")
+
+            for row in reader:
+                # Parse Settlement Date (as required in output mapping)
+                date = parse_indian_date_format(row.get("Settlement Date", "").strip())
+
+                # Use Segment Type as transaction remark
+                remark = row.get("Segment Type", "").strip()
+
+                # Parse amounts
+                debit_raw = row.get("Debit (Rs.)", "0").replace(",", "").strip()
+                credit_raw = row.get("Credit (Rs.)", "0").replace(",", "").strip()
+
+                debit = float(debit_raw) if debit_raw else 0.0
+                credit = float(credit_raw) if credit_raw else 0.0
+
+                # Net amount calculation
+                net_amount = credit - debit
+                abs_amount = abs(net_amount)
+
+                from_value = f"{-abs_amount} INR"
+                to_value = f"{abs_amount} INR"
+
+                transaction = create_transaction(
+                    statement_type=statement_type,
+                    who=who,
+                    date=date,
+                    remark=remark,
+                    from_value=from_value,
+                    to_value=to_value,
+                    net_amount=net_amount,
+                )
+
+                new_transactions.append(transaction)
+
+    return sorted(new_transactions, key=lambda x: x["DATE(YYYY-MM-DD)"])
+
+
+def ingest_gr_tb_mf_statements(statement_type, filename, who):
+    new_transactions = []
+
+    for file in ADDITIONAL_STATEMENTS_DIR.glob(f"{filename}.csv"):
+        with file.open(encoding="utf-8") as f:
+            reader = csv.DictReader(non_comment_lines(f), delimiter="\t")
+
+            for row in reader:
+                # Parse date (Date column)
+                date = parse_indian_date_format(row.get("Date", "").strip())
+
+                # Scheme lookup
+                scheme_name = row.get("Scheme Name", "").strip()
+                scheme_config = mutual_funds_gr_config.get(scheme_name, {})
+
+                symbol = scheme_config.get("isin", "").strip()
+                name = scheme_config.get("name", scheme_name)
+
+                # Quantity and amount
+                quantity_raw = row.get("Units", "0").replace(",", "").strip()
+                amount_raw = row.get("Amount", "0").replace(",", "").strip()
+
+                quantity = float(quantity_raw) if quantity_raw else 0.0
+                net_amount = float(amount_raw) if amount_raw else 0.0
+
+                # Transaction type
+                transaction_type = row.get("Transaction Type", "").strip().upper()
+
+                if transaction_type == "PURCHASE":
+                    from_value = f"{-net_amount} INR"
+                    to_value = f'{quantity} "{symbol}"'
+                    remark = f"Bought {name}"
+                else:
+                    from_value = f'-{quantity} "{symbol}"'
+                    to_value = f"{net_amount} INR"
+                    remark = f"Sold {name}"
+
+                # Create transaction
+                transaction = create_transaction(
+                    statement_type=statement_type,
+                    who=who,
+                    date=date,
+                    remark=remark,
+                    from_value=from_value,
+                    to_value=to_value,
+                    net_amount=net_amount,
+                )
+
+                new_transactions.append(transaction)
+
+    return sorted(new_transactions, key=lambda x: x["DATE(YYYY-MM-DD)"])
+
+
+def ingest_gr_tb_statements(statement_type, filename, who):
+    new_transactions = []
+
+    for file in ADDITIONAL_STATEMENTS_DIR.glob(f"{filename}.csv"):
+        with file.open(encoding="utf-8") as f:
+            reader = csv.DictReader(non_comment_lines(f), delimiter="\t")
+
+            for row in reader:
+                # Parse execution date
+                date = parse_indian_date_format(
+                    row.get("Execution date and time", "").strip()
+                )
+
+                # Basic fields
+                symbol = row.get("Symbol", "").strip()
+                trade_type = row.get("Type", "").strip().upper()
+
+                # Quantity and amount
+                quantity_raw = row.get("Quantity", "0").replace(",", "").strip()
+                amount_raw = row.get("Value", "0").replace(",", "").strip()
+
+                quantity = float(quantity_raw) if quantity_raw else 0.0
+                net_amount = float(amount_raw) if amount_raw else 0.0
+
+                # Remark
+                if trade_type == "BUY":
+                    remark = f"Bought {symbol}"
+                else:
+                    remark = f"Sold {symbol}"
+
+                # FROM_VALUE / TO_VALUE logic
+                if trade_type == "BUY":
+                    from_value = f"{-net_amount} INR"
+                    to_value = f'{quantity} "{symbol}"'
+                else:  # SELL
+                    from_value = f'-{quantity} "{symbol}"'
+                    to_value = f"{net_amount} INR"
+
+                # Create transaction
+                transaction = create_transaction(
+                    statement_type=statement_type,
+                    who=who,
+                    date=date,
+                    remark=remark,
+                    from_value=from_value,
+                    to_value=to_value,
+                    net_amount=net_amount,
+                )
+
+                new_transactions.append(transaction)
+
+    return sorted(new_transactions, key=lambda x: x["DATE(YYYY-MM-DD)"])
 
 
 def ingest_zb_tb_statements(statement_type, filename, who):
@@ -17,7 +177,7 @@ def ingest_zb_tb_statements(statement_type, filename, who):
 
             for row in reader:
                 # Parse date
-                date = parse_date(row.get("trade_date", "").strip())
+                date = parse_indian_date_format(row.get("trade_date", "").strip())
 
                 # Symbol
                 symbol = row.get("symbol", "").strip()
@@ -76,7 +236,7 @@ def ingest_zb_lg_statements(statement_type, filename, who):
 
             for row in reader:
                 # Parse date
-                date = parse_date(row.get("posting_date", "").strip())
+                date = parse_indian_date_format(row.get("posting_date", "").strip())
 
                 # Remark
                 remark = row.get("particulars", "").strip()
@@ -135,7 +295,7 @@ def ingest_ub_tb_statements(statement_type, filename, who):
 
             for row in reader:
                 # Parse date
-                date = parse_date(row.get("Date", "").strip())
+                date = parse_indian_date_format(row.get("Date", "").strip())
 
                 # ScripCode → Ticker
                 scrip_code = row.get("Scrip Code", "").strip()
@@ -197,7 +357,7 @@ def ingest_ub_lg_statements(statement_type, filename, who):
                 to_value = f"{str(abs_amount)} INR"
 
                 # Dates
-                date = parse_date(row.get("Trade Date", "").strip())
+                date = parse_indian_date_format(row.get("Trade Date", "").strip())
 
                 remark = row.get("Narration", "").strip()
 
@@ -235,7 +395,7 @@ def ingest_ks_statements(statement_type, filename, who):
 
                 raw_date = row.get("Transaction Date", "").strip()
                 date_part = raw_date.split()[0]
-                date = parse_date(date_part)
+                date = parse_indian_date_format(date_part)
 
                 remark = row.get("Description", "").strip()
                 transaction = create_transaction(
@@ -270,7 +430,7 @@ def ingest_hs_statements(statement_type, filename, who):
                 to_value = f"{str(abs_amount)} INR"
 
                 remark = row.get("Narration", "").strip()
-                date = parse_date(row["Date"])
+                date = parse_indian_date_format(row["Date"])
 
                 transaction = create_transaction(
                     statement_type=statement_type,
@@ -304,7 +464,7 @@ def ingest_is_statements(statement_type, filename, who):
                 to_value = f"{str(abs_amount)} INR"
 
                 remark = row.get("Transaction Remarks", "").strip()
-                date = parse_date(row["Transaction Date"])
+                date = parse_indian_date_format(row["Transaction Date"])
 
                 transaction = create_transaction(
                     statement_type, who, date, remark, from_value, to_value, net_amount
@@ -365,18 +525,31 @@ def ingest_statements(statement_type, filename, who, print_after_date):
         transactions = ingest_zb_tb_statements(
             statement_type=statement_type, filename=filename, who=who
         )
+    elif statement_type == "gr-lg":
+        transactions = ingest_gr_lg_statements(
+            statement_type=statement_type, filename=filename, who=who
+        )
+    elif statement_type == "gr-tb-mf":
+        transactions = ingest_gr_tb_mf_statements(
+            statement_type=statement_type, filename=filename, who=who
+        )
+    elif statement_type == "gr-tb":
+        transactions = ingest_gr_tb_statements(
+            statement_type=statement_type, filename=filename, who=who
+        )
 
     writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames)
     writer.writeheader()
     for tx in transactions:
-        tx_date = datetime.strptime(tx["DATE(YYYY-MM-DD)"], "%Y-%m-%d").date()
+        tx_date = tx["DATE(YYYY-MM-DD)"].date()
         if tx_date > print_after_date:
+            tx["DATE(YYYY-MM-DD)"] = tx_date.strftime("%Y-%m-%d")
             writer.writerow(tx)
 
 
 if __name__ == "__main__":
     # date(YYYY, MM, DD)
-    d = date(2025, 12, 31)
+    d = date(2000, 12, 31)
     # ingest me
     ingest_statements(statement_type="is", filename="is", who="me", print_after_date=d)
     ingest_statements(statement_type="hs", filename="hs", who="me", print_after_date=d)
@@ -408,4 +581,16 @@ if __name__ == "__main__":
     # ingest papa
     ingest_statements(
         statement_type="is", filename="is-papa", who="papa", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="gr-lg", filename="gr-lg-papa", who="papa", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="gr-tb-mf",
+        filename="gr-tb-mf-papa",
+        who="papa",
+        print_after_date=d,
+    )
+    ingest_statements(
+        statement_type="gr-tb", filename="gr-tb-papa", who="papa", print_after_date=d
     )

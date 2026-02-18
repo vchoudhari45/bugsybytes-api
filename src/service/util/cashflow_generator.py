@@ -4,7 +4,7 @@ from typing import List, Tuple
 from dateutil.relativedelta import relativedelta
 
 from src.data.config import QUANTITY_LAG_DAYS
-from src.service.util.date_util import to_date
+from src.service.util.date_util import parse_indian_date_format
 from src.service.util.holiday_calculator import next_market_day
 
 
@@ -86,8 +86,8 @@ def build_gsec_cashflows(
     Initial cashflow amount is 0 and must be replaced by price.
     """
 
-    # Normalize maturity_date (expects ISO format string or any pandas-parsable string)
-    maturity_date = to_date(maturity_date)
+    # Normalize maturity_date
+    maturity_date = parse_indian_date_format(maturity_date)
 
     coupon_rate = coupon_rate / 100
 
