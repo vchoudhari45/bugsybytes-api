@@ -622,57 +622,57 @@ def ingest_statements(statement_type, filename, who, print_after_date):
 
 if __name__ == "__main__":
     # date(YYYY, MM, DD)
-    d = date(2000, 12, 31)
+    d = date(2026, 2, 15)
     # ingest me
-    # ingest_statements(statement_type="is", filename="is", who="me", print_after_date=d)
-    # ingest_statements(statement_type="hs", filename="hs", who="me", print_after_date=d)
-    # ingest_statements(statement_type="ks", filename="ks", who="me", print_after_date=d)
-    # ingest_statements(
-    #     statement_type="ub-lg", filename="ub-lg", who="me", print_after_date=d
-    # )
-    # ingest_statements(
-    #     statement_type="ub-tb", filename="ub-tb", who="me", print_after_date=d
-    # )
-    # ingest_statements(
-    #     statement_type="zb-lg", filename="zb-lg", who="me", print_after_date=d
-    # )
-    # ingest_statements(
-    #     statement_type="zb-tb", filename="zb-tb", who="me", print_after_date=d
-    # )
-    # ingest_statements(
-    #     statement_type="zb-tb-mf", filename="zb-tb-mf", who="me", print_after_date=d
-    # )
+    ingest_statements(statement_type="is", filename="is", who="me", print_after_date=d)
+    ingest_statements(statement_type="hs", filename="hs", who="me", print_after_date=d)
+    ingest_statements(statement_type="ks", filename="ks", who="me", print_after_date=d)
+    ingest_statements(
+        statement_type="ub-lg", filename="ub-lg", who="me", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="ub-tb", filename="ub-tb", who="me", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="zb-lg", filename="zb-lg", who="me", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="zb-tb", filename="zb-tb", who="me", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="zb-tb-mf", filename="zb-tb-mf", who="me", print_after_date=d
+    )
 
     # ingest mom
-    # ingest_statements(
-    #     statement_type="is", filename="is-mom", who="mom", print_after_date=d
-    # )
-    # ingest_statements(
-    #     statement_type="zb-lg", filename="zb-lg-mom", who="mom", print_after_date=d
-    # )
-    # ingest_statements(
-    #     statement_type="zb-tb", filename="zb-tb-mom", who="mom", print_after_date=d
-    # )
-    # ingest_statements(
-    #     statement_type="zb-tb-mf",
-    #     filename="zb-tb-mf-mom",
-    #     who="mom",
-    #     print_after_date=d,
-    # )
+    ingest_statements(
+        statement_type="is", filename="is-mom", who="mom", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="zb-lg", filename="zb-lg-mom", who="mom", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="zb-tb", filename="zb-tb-mom", who="mom", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="zb-tb-mf",
+        filename="zb-tb-mf-mom",
+        who="mom",
+        print_after_date=d,
+    )
 
     # ingest papa
-    # ingest_statements(
-    #     statement_type="is", filename="is-papa", who="papa", print_after_date=d
-    # )
-    # ingest_statements(
-    #     statement_type="gr-lg", filename="gr-lg-papa", who="papa", print_after_date=d
-    # )
-    # ingest_statements(
-    #     statement_type="gr-tb-mf",
-    #     filename="gr-tb-mf-papa",
-    #     who="papa",
-    #     print_after_date=d,
-    # )
+    ingest_statements(
+        statement_type="is", filename="is-papa", who="papa", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="gr-lg", filename="gr-lg-papa", who="papa", print_after_date=d
+    )
+    ingest_statements(
+        statement_type="gr-tb-mf",
+        filename="gr-tb-mf-papa",
+        who="papa",
+        print_after_date=d,
+    )
     ingest_statements(
         statement_type="gr-tb", filename="gr-tb-papa", who="papa", print_after_date=d
     )
