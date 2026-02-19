@@ -1,6 +1,5 @@
 import concurrent.futures
 import sys
-from datetime import date, datetime
 from functools import partial
 
 import pandas as pd
@@ -16,6 +15,7 @@ from src.service.util.cashflow_generator import (
     generate_coupon_dates,
     market_shifted,
 )
+from src.service.util.date_util import parse_indian_date_format
 from src.service.util.holiday_calculator import next_market_day
 from src.service.util.xirr_calculator import xirr
 
@@ -28,28 +28,7 @@ gsec_maturity_date_override_df = gsec_maturity_date_override_df.set_index("SYMBO
 
 
 def normalize_date(date_value):
-    if isinstance(date_value, date):
-        date_obj = date_value
-
-    elif isinstance(date_value, datetime):
-        date_obj = date_value.date()
-
-    elif isinstance(date_value, str):
-        date_value = date_value.strip()
-
-        # Try multiple known formats
-        for fmt in ("%y-%b-%d", "%Y/%m/%d", "%Y-%m-%d"):
-            try:
-                date_obj = datetime.strptime(date_value, fmt).date()
-                break
-            except ValueError:
-                continue
-        else:
-            raise ValueError(f"Unsupported date format: {date_value}")
-
-    else:
-        raise TypeError(f"Unsupported type for date_value: {type(date_value)}")
-
+    date_obj = parse_indian_date_format(date_value)
     return next_market_day(date_obj, QUANTITY_LAG_DAYS)
 
 
@@ -85,7 +64,7 @@ def compute_for_commodity(commodity, report, ledger_files, account_name):
     row = gsec_maturity_date_override_df.loc[commodity]
     coupon_rate = float(row["COUPON RATE"])
     maturity_date_str = row["MATURITY DATE"]
-    maturity_date = datetime.strptime(maturity_date_str, "%b %d %Y").date()
+    maturity_date = parse_indian_date_format(maturity_date_str)
     coupon_frequency = float(row["COUPON FREQUENCY"])
     isin = row["ISIN"]
     face_value = float(row["FACE VALUE"])

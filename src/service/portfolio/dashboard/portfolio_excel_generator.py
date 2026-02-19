@@ -11,6 +11,8 @@ from src.data.config import (
     LEDGER_MOM_MAIN,
     LEDGER_PAPA_MAIN,
     PORTFOLIO_DASHBOARD_FILEPATH,
+    RED_BOLD,
+    RESET,
 )
 from src.service.portfolio.dashboard.account_metrics_data import (
     calculate_individual_xirr_report_data,
@@ -129,7 +131,12 @@ if __name__ == "__main__":
     with open(DASHBOARD_LAYOUT_CONFIG_PATH, "r") as f:
         dashboard_layout_config = yaml.safe_load(f)
 
-    zero_balance_account_config = dashboard_config["dashboard"]["zero_balance_accounts"]
+    zero_balance_accounts_config = dashboard_config["dashboard"][
+        "zero_balance_accounts"
+    ]
+    zero_balance_accounts_pending_config = dashboard_config["dashboard"][
+        "zero_balance_accounts_pending"
+    ]
     categories = dashboard_config["dashboard"]["categories"]
     individual_xirr_reports_config = dashboard_config["dashboard"][
         "individual_xirr_reports"
@@ -153,23 +160,47 @@ if __name__ == "__main__":
         ledger_files,
     )
 
+    # Zero Balance Validation
+    print("\nValidating Zero Balance Accounts")
+    for zero_account in zero_balance_accounts_config:
+        balance = sum(
+            entry["amount"]
+            for entry in balance_sheet_data
+            if entry["account"].startswith(zero_account)
+        )
+
+        print(f"Account: {zero_account} has balance of {balance}")
+        if abs(balance) > 0.01:
+            # If account is in pending list, ignore but show in red
+            if zero_account in zero_balance_accounts_pending_config:
+                print(
+                    f"{RED_BOLD}Ignoring pending account {zero_account}: {balance}{RESET}"
+                )
+                continue
+
+            # Otherwise, fail
+            print(
+                f"{RED_BOLD}❌ Zero balance validation failed for {zero_account}: {balance}{RESET}"
+            )
+            sys.exit(1)
+
     # Metrics & Summary Data
     summary_data = calculate_summary_data(
         balance_sheet_data=balance_sheet_data,
         income_statement_data=income_statement_data,
-        zero_balance_account_config=zero_balance_account_config,
+        zero_balance_accounts_config=zero_balance_accounts_config,
     )
 
     # Allocation Data
     allocation_data = calculate_investment_allocation(
         balance_sheet_data,
         categories,
-        zero_balance_account_config,
+        zero_balance_accounts_config,
     )
 
     # Account - Amount Table Data
     category_tables_data = calculate_category_tables_data(
-        balance_sheet_data, categories, zero_balance_account_config
+        balance_sheet_data, categories, zero_balance_accounts_config
     )
 
     # Retirement Tracking Data
@@ -311,17 +342,6 @@ if __name__ == "__main__":
         start_row=0,
         start_col=0,
     )
-
-    # Zero Balance Validation
-    for zero_account in zero_balance_account_config:
-        balance = sum(
-            entry["amount"]
-            for entry in balance_sheet_data
-            if entry["account"].startswith(zero_account)
-        )
-        if abs(balance) > 0.01:
-            print(f"❌ Zero balance validation failed for {zero_account}: {balance}")
-            sys.exit(1)
 
     workbook.close()
 

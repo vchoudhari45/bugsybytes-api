@@ -8,6 +8,7 @@ import requests
 from src.service.portfolio.ledger.ledger_cli_output_parser import (
     get_ledger_cli_output_by_config,
 )
+from src.service.util.date_util import parse_indian_date_format
 from src.service.util.xirr_calculator import xirr
 
 _AMFI_CACHE = None
@@ -130,7 +131,7 @@ def compute_for_commodity(
     for entry in cashflow_data:
         date_value = entry["date"]
         if isinstance(date_value, str):
-            date_obj = datetime.strptime(date_value, "%y-%b-%d").date()
+            date_obj = parse_indian_date_format(date_value)
         else:
             date_obj = date_value.date()
 

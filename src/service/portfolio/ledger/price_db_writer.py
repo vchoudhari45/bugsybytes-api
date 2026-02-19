@@ -17,6 +17,7 @@ from src.data.config import (
     NSE_GSEC_LIVE_DATA_DIR,
 )
 from src.service.util.csv_util import read_all_dated_csv_files_from_folder
+from src.service.util.date_util import parse_indian_date_format
 
 UPSTOX_ACCESS_TOKEN = os.getenv("UPSTOX_ACCESS_TOKEN")
 CRYPTO_LIST = ["XRP", "BTC", "CORECHAIN", "NEAR", "FLR"]
@@ -266,12 +267,12 @@ def fetch_ind_mf_price_history(isin, year):
         return {}
 
     prices = {}
-    from_dt = time.strptime(from_date, "%Y-%m-%d")
-    to_dt = time.strptime(to_date, "%Y-%m-%d")
+    from_dt = parse_indian_date_format(from_date)
+    to_dt = parse_indian_date_format(to_date)
 
     for entry in data["data"]:
-        dt = time.strptime(entry["date"], "%d-%m-%Y")
-        date_str = time.strftime("%Y-%m-%d", dt)
+        dt = parse_indian_date_format(entry["date"])
+        date_str = parse_indian_date_format(dt)
         if from_dt <= dt <= to_dt:
             nav = float(entry["nav"])
             prices[date_str] = nav

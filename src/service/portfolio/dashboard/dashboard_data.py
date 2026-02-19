@@ -21,11 +21,11 @@ def filter_accounts(data, prefix, zero_list):
 
 
 def calculate_category_tables_data(
-    balance_sheet_data, categories, zero_balance_account_config
+    balance_sheet_data, categories, zero_balance_accounts_config
 ):
     category_tables_data = []
     for title, prefix in categories.items():
-        data = filter_accounts(balance_sheet_data, prefix, zero_balance_account_config)
+        data = filter_accounts(balance_sheet_data, prefix, zero_balance_accounts_config)
         if not data:
             continue
 
@@ -40,18 +40,18 @@ def calculate_category_tables_data(
 
 
 def calculate_summary_data(
-    balance_sheet_data, income_statement_data, zero_balance_account_config
+    balance_sheet_data, income_statement_data, zero_balance_accounts_config
 ):
-    assets = sum_accounts(balance_sheet_data, "Assets", zero_balance_account_config)
+    assets = sum_accounts(balance_sheet_data, "Assets", zero_balance_accounts_config)
     liabilities = sum_accounts(
-        balance_sheet_data, "Liabilities", zero_balance_account_config
+        balance_sheet_data, "Liabilities", zero_balance_accounts_config
     )
     liquid_cash = sum_accounts(
-        balance_sheet_data, "Assets:Bank", zero_balance_account_config
+        balance_sheet_data, "Assets:Bank", zero_balance_accounts_config
     )
-    income = sum_accounts(income_statement_data, "Income", zero_balance_account_config)
+    income = sum_accounts(income_statement_data, "Income", zero_balance_accounts_config)
     expenses = sum_accounts(
-        income_statement_data, "Expenses", zero_balance_account_config
+        income_statement_data, "Expenses", zero_balance_accounts_config
     )
     summary_data = [
         {"Metric": "Net Worth", "Amount": assets - liabilities},
@@ -66,7 +66,7 @@ def calculate_summary_data(
 def calculate_investment_allocation(
     balance_sheet_data,
     categories_mapping,
-    zero_balance_account_config,
+    zero_balance_accounts_config,
 ):
     allocation_totals = {name: 0 for name in categories_mapping.keys()}
     allocation_totals["Other"] = 0
@@ -76,7 +76,7 @@ def calculate_investment_allocation(
         account = entry["account"]
         amount = entry["amount"]
 
-        if is_zero_account(account, zero_balance_account_config):
+        if is_zero_account(account, zero_balance_accounts_config):
             continue
 
         if not account.startswith("Assets"):
