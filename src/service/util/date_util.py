@@ -1,34 +1,34 @@
-from datetime import datetime
+from datetime import date, datetime
+
+import pandas as pd
 
 
-def parse_indian_date_format(date_str: str) -> datetime:
+def parse_indian_date_format(val):
     """
-    Strict Indian-first date parser.
+    Normalize any date-like input to datetime.date.
 
-    Supported formats:
-        18-02-2025
-        18/02/2025
-        18/02/25
-        18 Feb 2025
-        18 February 2025
-        Sep 11 2026
-        September 11 2026
-        18-02-2025 09:19 AM
-        18/02/2025 09:19 AM
-        2025-01-23
-        2025-01-23 09:19:00
-        2025/01/23
-        23.01.2025
+    Supported input types:
+        - pandas.Timestamp
+        - datetime.date
+        - str in strict Indian or common formats
 
     Raises:
-        ValueError if format is not explicitly supported.
+        TypeError if input is not a string, Timestamp, or date
+        ValueError if string format is unsupported
     """
+    # Handle pandas.Timestamp
+    if isinstance(val, pd.Timestamp):
+        return val.date()
 
-    if not isinstance(date_str, str):
-        raise TypeError("date_str must be a string")
+    # Handle datetime.date
+    if isinstance(val, date):
+        return val
 
-    date_str = date_str.strip()
+    # Handle string input
+    if not isinstance(val, str):
+        raise TypeError("Input must be a string, datetime.date, or pandas.Timestamp")
 
+    date_str = val.strip()
     if not date_str:
         raise ValueError("Empty date string")
 
@@ -51,7 +51,7 @@ def parse_indian_date_format(date_str: str) -> datetime:
 
     for fmt in SUPPORTED_FORMATS:
         try:
-            return datetime.strptime(date_str, fmt)
+            return datetime.strptime(date_str, fmt).date()
         except ValueError:
             continue
 

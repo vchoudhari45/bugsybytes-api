@@ -614,7 +614,7 @@ def ingest_statements(statement_type, filename, who, print_after_date):
     writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames)
     writer.writeheader()
     for tx in transactions:
-        tx_date = tx["DATE(YYYY-MM-DD)"].date()
+        tx_date = tx["DATE(YYYY-MM-DD)"]
         if tx_date > print_after_date:
             tx["DATE(YYYY-MM-DD)"] = tx_date.strftime("%Y-%m-%d")
             writer.writerow(tx)
