@@ -121,6 +121,7 @@ def compute_for_commodity(
     current_value = get_ledger_cli_output_by_config(
         report["balance"], ledger_files, commodity, "balance"
     )
+    # Validate single current value
     if current_value and len(current_value) > 1:
         print("Error: Can't have multiple values for single commodity ")
         sys.exit(1)
@@ -128,6 +129,7 @@ def compute_for_commodity(
     cashflow_dates = []
     cashflow = []
     investment_amount = 0.0
+    dividend = 0.0
     for entry in cashflow_data:
         date_value = entry["date"]
         if isinstance(date_value, str):
@@ -135,20 +137,36 @@ def compute_for_commodity(
         else:
             date_obj = date_value.date()
 
+        account = entry["account"].lower()
         amount = float(entry["amount"])
 
+        # negate income amount
+        if account.startswith("income"):
+            amount = -amount
+
+        # dividends
+        if account.startswith("income:dividends"):
+            dividend += abs(amount)
+        else:
+            investment_amount += amount
+
+        # cashflow logic
         cashflow_dates.append(date_obj)
         cashflow.append(amount)
-        investment_amount += amount
+
+    # If no cashflows, skip safely
+    if not cashflow_dates:
+        return None
 
     # add investment_amount_current_value to cashflow
     investment_amount_current_value = (
         float(current_value[0]["amount"]) if current_value else 0.0
     )
 
-    # ignore investment which don't have any investments anymore
     investment_amount = abs(investment_amount)
-    if investment_amount <= 5 or investment_amount_current_value <= 5:
+
+    # ignore commodities which don't have any investments anymore
+    if investment_amount <= 1 or investment_amount_current_value <= 1:
         return None
 
     cashflow_dates.append(today)
@@ -160,12 +178,25 @@ def compute_for_commodity(
     number_of_days_since_first_investment = (max_date - min_date).days
     if number_of_days_since_first_investment > 180:
         xirr_value = xirr(cashflow_dates, cashflow)
+        # Add dividend and calculate XIRR with dividend
+        if dividend > 0:
+            cashflow_with_dividend = cashflow.copy()
+            cashflow_with_dividend[-1] += dividend
+            xirr_value_with_dividend = xirr(cashflow_dates, cashflow_with_dividend)
+        else:
+            xirr_value_with_dividend = xirr_value
     else:
         xirr_value = 0
+        xirr_value_with_dividend = 0
 
     # Calculate absolute return
     abs_return = (
         investment_amount_current_value - investment_amount
+    ) / investment_amount
+
+    # Calculate absolute return with dividend
+    abs_return_with_dividend = (
+        (investment_amount_current_value + dividend) - investment_amount
     ) / investment_amount
 
     # Get metrics
@@ -195,9 +226,19 @@ def compute_for_commodity(
             "DAYS SINCE FIRST INVESTMENT": number_of_days_since_first_investment,
         }
     )
+
+    if not is_mf:
+        output.update(
+            {
+                "DIVIDEND": dividend,
+                "ABSOLUTE RETURN WITH DIVIDEND": round(abs_return_with_dividend, 2),
+                "XIRR WITH DIVIDEND": round(xirr_value_with_dividend, 2),
+            }
+        )
+
     output.update(metrics)
     output.update(
-        {"NEWS_LINK": get_google_finance_link(is_mf, google_finance_code, commodity)}
+        {"NEWS LINK": get_google_finance_link(is_mf, google_finance_code, commodity)}
     )
 
     return output

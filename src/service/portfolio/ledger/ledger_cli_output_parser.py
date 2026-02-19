@@ -1,7 +1,5 @@
 import subprocess
 
-from src.service.util.number_util import is_not_number
-
 
 def get_ledger_cli_output_by_config(
     config, ledger_files, commodity=None, command_type="balance"
@@ -110,24 +108,15 @@ def parse_ledger_cli_register_output(output):
         line = line.strip()
         if not line:
             continue
-        arr = line.split(" ")
+        arr = line.split("|")
         arr_filtered = [x for x in arr if x]
 
-        if len(arr_filtered) > 0 and "-" in arr_filtered[0]:
-            current_date = arr_filtered[0]
-
-        if is_not_number(arr_filtered[-4]):
-            amount_index = -3
-        else:
-            amount_index = -4
-
-        if current_date:
-            parsed_lines.append(
-                {
-                    "date": current_date,
-                    "amount": float(arr_filtered[amount_index].replace(",", "")),
-                }
-            )
+        current_date = arr_filtered[0]
+        account = arr_filtered[-3]
+        amount = float(arr_filtered[-1].split(" ")[0].replace(",", ""))
+        parsed_lines.append(
+            {"date": current_date, "account": account, "amount": amount}
+        )
     return parsed_lines
 
 
