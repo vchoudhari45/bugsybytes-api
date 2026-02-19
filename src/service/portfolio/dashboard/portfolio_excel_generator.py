@@ -293,6 +293,8 @@ if __name__ == "__main__":
     for report in individual_xirr_reports_data:
         report_name = report["name"]
         report_data = report["data"]
+        if not report_data:
+            continue
         ws_xirr = workbook.add_worksheet(report_name)
         print_table(
             worksheet=ws_xirr,
@@ -308,6 +310,8 @@ if __name__ == "__main__":
     for report in gsec_individual_xirr_reports_data:
         report_name = report["name"]
         cashflow_data = report["cashflow_data"]
+        if not cashflow_data:
+            continue
         ws_cashflow = workbook.add_worksheet(report_name)
         print_table(
             worksheet=ws_cashflow,

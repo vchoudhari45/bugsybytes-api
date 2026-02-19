@@ -183,7 +183,8 @@ def compute_for_commodity(
         fund = find_fund_by_isin(mutual_funds, account_name, commodity)
         fl_number = fund.get("fl_number", "") if fund else ""
         google_finance_code = fund.get("google_finance_code", "") if fund else ""
-        output["FL NUMBER"] = fl_number
+        if fl_number is not None and str(fl_number).strip() != "":
+            output["FL NUMBER"] = fl_number
 
     output.update(
         {
