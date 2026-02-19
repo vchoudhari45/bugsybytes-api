@@ -29,8 +29,24 @@ def ingest_gr_lg_statements(statement_type, filename, who):
                 # Parse Settlement Date (as required in output mapping)
                 date = parse_indian_date_format(row.get("Settlement Date", "").strip())
 
-                # Use Segment Type as transaction remark
-                remark = row.get("Segment Type", "").strip()
+                # Read first 3 letters of Voucher No.
+                voucher_no = (
+                    row.get("Voucher No.", "").strip().upper()
+                )  # normalize to uppercase
+                voucher_prefix = voucher_no[:3]  # first 3 letters
+
+                # Prepend appropriate category
+                if voucher_prefix == "SET":
+                    remark = f"Settlement: {voucher_no}"
+                elif voucher_prefix == "WTD":
+                    remark = f"Withdrawal: {voucher_no}"
+                elif voucher_prefix == "EXP":
+                    remark = f"Expenses: {voucher_no}"
+                elif voucher_prefix == "DEP":
+                    remark = f"Deposit: {voucher_no}"
+                else:
+                    print(f"voucher_no: {voucher_no} has no valid prefix")
+                    sys.exit(1)
 
                 # Parse amounts
                 debit_raw = row.get("Debit (Rs.)", "0").replace(",", "").strip()
@@ -648,15 +664,15 @@ if __name__ == "__main__":
     # ingest_statements(
     #     statement_type="is", filename="is-papa", who="papa", print_after_date=d
     # )
-    ingest_statements(
-        statement_type="gr-lg", filename="gr-lg-papa", who="papa", print_after_date=d
-    )
+    # ingest_statements(
+    #     statement_type="gr-lg", filename="gr-lg-papa", who="papa", print_after_date=d
+    # )
     # ingest_statements(
     #     statement_type="gr-tb-mf",
     #     filename="gr-tb-mf-papa",
     #     who="papa",
     #     print_after_date=d,
     # )
-    # ingest_statements(
-    #     statement_type="gr-tb", filename="gr-tb-papa", who="papa", print_after_date=d
-    # )
+    ingest_statements(
+        statement_type="gr-tb", filename="gr-tb-papa", who="papa", print_after_date=d
+    )
