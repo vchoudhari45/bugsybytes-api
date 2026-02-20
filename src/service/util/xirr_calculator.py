@@ -12,6 +12,12 @@ def xirr(dates, cashflows, guess=0.1):
     # Convert each date to number of days from the first cashflow date
     # This is needed to calculate the time fraction for discounting
 
+    # Edge case: all cashflows same sign → XIRR undefined
+    if all(c <= 0 for c in cashflows) or all(c >= 0 for c in cashflows):
+        raise ValueError(
+            f"Cannot calculate XIRR: all cashflows have the same sign. Cashflows: {cashflows}"
+        )
+
     days = np.array([(d - dates[0]).days for d in dates], dtype=float)
 
     # Define Net Present Value (NPV) function at a given rate

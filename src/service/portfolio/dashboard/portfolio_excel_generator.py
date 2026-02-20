@@ -34,25 +34,43 @@ from src.service.portfolio.ledger.ledger_cli_output_parser import (
 
 # Fields
 amount_fields = [
-    "INVESTMENT_AMOUNT",
-    "CURRENT_VALUE",
-    "ABSOLUTE RETURN",
-    "XIRR",
-    "DAYS SINCE FIRST INVESTMENT",
-    "EPS",
-    "PE",
-    "MEDIAN PE",
-    "AMOUNT",
+    # retirement data fields
     "INVESTMENT AMOUNT",
     "INFLATION ADJUSTED YEARLY EXPENSES",
     "INCOME",
     "TAX",
     "INVESTMENT AMOUNT FOR NEXT YEAR",
+    # account metrics data field
+    "TOTAL INVESTED",
+    "CURRENT INVESTED",
+    "CURRENT QUANTITY" "AVERAGE COST (OPEN POSITION)",
+    "CURRENT MARKET VALUE",
+    "REALIZED P&L",
+    "UNREALIZED P&L",
+    "DIVIDEND",
+    "HOLDING PERIOD(OVERALL)",
+    "CURRENT HOLDING PERIOD",
+    "EPS",
+    "PE",
+    "MEDIAN PE",
 ]
 
-percent_fields = ["%", "XIRR", "ABSOLUTE RETURN"]
+percent_fields = [
+    # dashboard data fields
+    "%",
+    # gsec data fields
+    "XIRR",
+    # account metrics data field
+    "ABSOLUTE RETURN (OVERALL)",
+    "CURRENT ABSOLUTE RETURN",
+    "CAGR(OVERALL)",
+    "CURRENT CAGR",
+    "DIVIDEND YIELD(OVERALL)",
+    "XIRR(OVERALL)",
+    "CURRENT XIRR",
+]
 
-link_fields = ["NEWS_LINK"]
+link_fields = ["NEWS LINK"]
 
 
 def print_table(
@@ -98,7 +116,10 @@ def print_table(
 
             # Percent fields
             elif header_upper in percent_fields_upper:
-                worksheet.write(row, start_col + col, value, layout["percent_fmt"])
+                print(f"Value: {header_upper}: {value}")
+                worksheet.write(
+                    row, start_col + col, value * 100, layout["percent_fmt"]
+                )
 
             # Amount fields
             elif header_upper in amount_fields_upper:
@@ -296,6 +317,7 @@ if __name__ == "__main__":
         if not report_data:
             continue
         ws_xirr = workbook.add_worksheet(report_name)
+        ws_xirr.freeze_panes(1, 1)
         print_table(
             worksheet=ws_xirr,
             workbook=workbook,
@@ -313,6 +335,7 @@ if __name__ == "__main__":
         if not cashflow_data:
             continue
         ws_cashflow = workbook.add_worksheet(report_name)
+        ws_cashflow.freeze_panes(1, 1)
         print_table(
             worksheet=ws_cashflow,
             workbook=workbook,
@@ -325,6 +348,7 @@ if __name__ == "__main__":
         report_name_xirr = f"{report["name"]} Summary"
         xirr_data = report["xirr_data"]
         ws_xirr = workbook.add_worksheet(report_name_xirr)
+        ws_xirr.freeze_panes(1, 1)
         print_table(
             worksheet=ws_xirr,
             workbook=workbook,
@@ -337,6 +361,7 @@ if __name__ == "__main__":
 
     # Render retirement tracking data
     ws_retirement = workbook.add_worksheet("Retirement")
+    ws_retirement.freeze_panes(1, 1)
     print_table(
         worksheet=ws_retirement,
         workbook=workbook,

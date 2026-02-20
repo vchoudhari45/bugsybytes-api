@@ -92,8 +92,8 @@ def compute_for_commodity(commodity, report, ledger_files, account_name):
         "SYMBOL": commodity,
         "ISIN": isin,
         "XIRR": xirr_value,
-        "INVESTMENT": total_investment,
-        "QUANTITY": total_quantity,
+        "INVESTMENT AMOUNT": total_investment,
+        "CURRENT QUANTITY": total_quantity,
         "MATURITY DATE": maturity_date,
     }
     return xirr_data, cashflow_dates_and_quantity

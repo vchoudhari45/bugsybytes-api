@@ -1,6 +1,6 @@
 import concurrent.futures
 import sys
-from datetime import datetime
+from datetime import date, datetime
 from functools import partial
 
 import requests
@@ -90,7 +90,8 @@ def get_metrics(company_id):
                 elif "TTM EPS" in label:
                     metrics["EPS"] = val
         return metrics
-    except Exception:
+    except Exception as e:
+        print(f"Error while fetching company ID for '{company_id}': {e}")
         return {}
 
 
@@ -113,91 +114,144 @@ def compute_for_commodity(
 ):
     display_name = amfi_isin_map.get(commodity, commodity)
 
-    # Get cashflow for each commodity using ledger register command
-    cashflow_data = get_ledger_cli_output_by_config(
-        report["register"], ledger_files, commodity, "register"
+    # Get income flow for each commodity
+    income_flow = get_ledger_cli_output_by_config(
+        report["register"]["income_flow"], ledger_files, commodity, "register"
     )
+    # Get equity flow for each commodity
+    equity_flow = get_ledger_cli_output_by_config(
+        report["register"]["equity_flow"], ledger_files, commodity, "register"
+    )
+    combined_flow = equity_flow + income_flow
+    combined_flow.sort(key=lambda x: parse_indian_date_format(x["date"]))
+
     # Get current value of each commodity using ledger balance command
-    current_value = get_ledger_cli_output_by_config(
+    balance = get_ledger_cli_output_by_config(
         report["balance"], ledger_files, commodity, "balance"
     )
     # Validate single current value
-    if current_value and len(current_value) > 1:
-        print("Error: Can't have multiple values for single commodity ")
+    if balance and len(balance) > 1:
+        print(
+            "Error: A single commodity cannot have more than one balance value, Please check account_metrics_data.py"
+        )
         sys.exit(1)
 
-    cashflow_dates = []
-    cashflow = []
-    investment_amount = 0.0
+    total_inflow = 0.0
+    total_invested = sys.float_info.min
+    current_invested = 0.0
+    current_quantity = 0.0
+    realized_pl = 0.0
     dividend = 0.0
-    for entry in cashflow_data:
+    first_investment_date = datetime.max.date()
+    current_capital_first_investment_date = datetime.max.date()
+    cashflow_dates = []
+    cashflows = []
+    current_cashflow_dates = []
+    current_cashflows = []
+    for entry in combined_flow:
         date_value = entry["date"]
         if isinstance(date_value, str):
             date_obj = parse_indian_date_format(date_value)
         else:
             date_obj = date_value.date()
 
+        first_investment_date = min(first_investment_date, date_obj)
         account = entry["account"].lower()
+        quantity = float(entry["quantity"])
         amount = float(entry["amount"])
 
-        # negate income amount
-        if account.startswith("income"):
-            amount = -amount
-
-        # dividends
         if account.startswith("income:dividends"):
-            dividend += abs(amount)
+            dividend += amount
+        elif account.startswith("income:capitalgains"):
+            cashflow_dates.append(date_obj)
+            cashflows.append(amount)
+            current_cashflow_dates.append(date_obj)
+            current_cashflows.append(amount)
+            realized_pl += amount
         else:
-            investment_amount += amount
+            cashflow_dates.append(date_obj)
+            cashflows.append(amount)
+            current_cashflow_dates.append(date_obj)
+            current_cashflows.append(amount)
+            current_invested += amount
+            current_quantity += quantity
+            if amount < 0:
+                total_inflow += amount
+            if current_quantity == 0:
+                total_invested = max(total_invested, abs(total_inflow))
+                total_inflow = 0.0
+                current_cashflow_dates = []
+                current_cashflows = []
+                current_capital_first_investment_date = date_obj
 
-        # cashflow logic
-        cashflow_dates.append(date_obj)
-        cashflow.append(amount)
-
-    # If no cashflows, skip safely
-    if not cashflow_dates:
+    # handling for float issue
+    if current_quantity <= 0.1 and current_invested <= 0.1:
         return None
 
-    # add investment_amount_current_value to cashflow
-    investment_amount_current_value = (
-        float(current_value[0]["amount"]) if current_value else 0.0
+    if current_capital_first_investment_date == datetime.max.date():
+        current_capital_first_investment_date = first_investment_date
+
+    # handling cases where quantity never becomes zero and total_invested is never assigned
+    if total_invested == sys.float_info.min:
+        total_invested = abs(total_inflow)
+
+    # handling cases where current_invested > total_invested
+    current_invested = abs(current_invested)
+    total_invested = max(total_invested, current_invested)
+
+    current_market_value = float(balance[0]["amount"]) if balance else 0.0
+
+    average_cost = (
+        round(current_invested / current_quantity, 2) if current_quantity else 0.0
+    )
+    unrealized_pl = round(current_market_value - current_invested, 2)
+    total_pl = realized_pl + unrealized_pl
+
+    absolute_return = (total_pl / total_invested) if total_invested != 0 else 0.0
+    current_absolute_return = (
+        unrealized_pl / current_invested if current_invested != 0 else 0.0
     )
 
-    investment_amount = abs(investment_amount)
+    dividend_yield = (dividend / total_invested) if total_invested != 0 else 0.0
 
-    # ignore commodities which don't have any investments anymore
-    if investment_amount <= 1 or investment_amount_current_value <= 1:
-        return None
+    holding_days = (date.today() - first_investment_date).days
+    current_holding_days = (date.today() - current_capital_first_investment_date).days
 
-    cashflow_dates.append(today)
-    cashflow.append(investment_amount_current_value)
+    cagr = (1 + absolute_return) ** (365 / holding_days) - 1
+    current_cagr = (1 + current_absolute_return) ** (365 / current_holding_days) - 1
 
-    # Calculate XIRR
-    min_date = min(cashflow_dates)
-    max_date = max(cashflow_dates)
-    number_of_days_since_first_investment = (max_date - min_date).days
-    if number_of_days_since_first_investment > 180:
-        xirr_value = xirr(cashflow_dates, cashflow)
-        # Add dividend and calculate XIRR with dividend
-        if dividend > 0:
-            cashflow_with_dividend = cashflow.copy()
-            cashflow_with_dividend[-1] += dividend
-            xirr_value_with_dividend = xirr(cashflow_dates, cashflow_with_dividend)
-        else:
-            xirr_value_with_dividend = xirr_value
-    else:
-        xirr_value = 0
-        xirr_value_with_dividend = 0
+    # add current market value
+    cashflow_dates.append(date.today())
+    current_cashflow_dates.append(date.today())
+    cashflows.append(current_market_value)
+    current_cashflows.append(current_market_value)
 
-    # Calculate absolute return
-    abs_return = (
-        investment_amount_current_value - investment_amount
-    ) / investment_amount
+    print(
+        f"Symbol: {commodity}",
+        f"Cashflows Dates Overall: {[d.strftime('%Y-%m-%d') for d in cashflow_dates]}",
+        f"Cashflows Overall: {cashflows}",
+        f"Current Cashflows Dates: {[d.strftime('%Y-%m-%d') for d in current_cashflow_dates]}",
+        f"Current Cashflow: {current_cashflows}",
+        f"TOTAL INVESTED: {total_invested}",
+        f"CURRENT INVESTED: {current_invested}",
+        f"CURRENT QUANTITY: {current_quantity}",
+        f"AVERAGE COST (OPEN POSITION): {average_cost}",
+        f"CURRENT MARKET VALUE: {current_market_value}",
+        f"REALIZED P&L: {realized_pl}",
+        f"UNREALIZED P&L: {unrealized_pl}",
+        f"DIVIDEND: {dividend}",
+        f"ABSOLUTE RETURN (OVERALL): {absolute_return * 100}",
+        f"CURRENT ABSOLUTE RETURN: {current_absolute_return * 100}",
+        f"CAGR(OVERALL): {cagr * 100}",
+        f"CURRENT CAGR: {current_cagr * 100}",
+        f"DIVIDEND YIELD(OVERALL): {dividend_yield * 100}",
+        f"HOLDING PERIOD(OVERALL): {holding_days}",
+        f"CURRENT HOLDING PERIOD: {current_holding_days}",
+        sep="\n",
+    )
 
-    # Calculate absolute return with dividend
-    abs_return_with_dividend = (
-        (investment_amount_current_value + dividend) - investment_amount
-    ) / investment_amount
+    xirr_value = xirr(dates=cashflow_dates, cashflows=cashflows)
+    current_xirr_value = xirr(dates=current_cashflow_dates, cashflows=current_cashflows)
 
     # Get metrics
     company_id = get_company_id(display_name)
@@ -214,33 +268,35 @@ def compute_for_commodity(
         fund = find_fund_by_isin(mutual_funds, account_name, commodity)
         fl_number = fund.get("fl_number", "") if fund else ""
         google_finance_code = fund.get("google_finance_code", "") if fund else ""
+
         if fl_number is not None and str(fl_number).strip() != "":
             output["FL NUMBER"] = fl_number
 
     output.update(
         {
-            "INVESTMENT_AMOUNT": round(investment_amount, 2),
-            "CURRENT_VALUE": round(investment_amount_current_value, 2),
-            "ABSOLUTE RETURN": round(abs_return, 2),
-            "XIRR": round(xirr_value, 2),
-            "DAYS SINCE FIRST INVESTMENT": number_of_days_since_first_investment,
+            "TOTAL INVESTED": total_invested,
+            "CURRENT INVESTED": current_invested,
+            "CURRENT QUANTITY": current_quantity,
+            "AVERAGE COST (OPEN POSITION)": average_cost,
+            "CURRENT MARKET VALUE": current_market_value,
+            "REALIZED P&L": realized_pl,
+            "UNREALIZED P&L": unrealized_pl,
+            "DIVIDEND": dividend,
+            "ABSOLUTE RETURN (OVERALL)": absolute_return,
+            "CURRENT ABSOLUTE RETURN": current_absolute_return,
+            "CAGR(OVERALL)": cagr,
+            "CURRENT CAGR": current_cagr,
+            "XIRR(OVERALL)": xirr_value,
+            "CURRENT XIRR": current_xirr_value,
+            "DIVIDEND YIELD(OVERALL)": dividend_yield,
+            "HOLDING PERIOD(OVERALL)": holding_days,
+            "CURRENT HOLDING PERIOD": current_holding_days,
         }
     )
-
-    if not is_mf:
-        output.update(
-            {
-                "DIVIDEND": dividend,
-                "ABSOLUTE RETURN WITH DIVIDEND": round(abs_return_with_dividend, 2),
-                "XIRR WITH DIVIDEND": round(xirr_value_with_dividend, 2),
-            }
-        )
-
     output.update(metrics)
     output.update(
         {"NEWS LINK": get_google_finance_link(is_mf, google_finance_code, commodity)}
     )
-
     return output
 
 

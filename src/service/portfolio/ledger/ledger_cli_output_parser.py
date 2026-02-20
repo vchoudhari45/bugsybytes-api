@@ -112,10 +112,21 @@ def parse_ledger_cli_register_output(output):
         arr_filtered = [x for x in arr if x]
 
         current_date = arr_filtered[0]
-        account = arr_filtered[-3]
-        amount = float(arr_filtered[-1].split(" ")[0].replace(",", ""))
+        account = arr_filtered[1]
+
+        if "<Adjustment>" in account or "<Revalued>" in account:
+            quantity = 0.0
+        else:
+            quantity = float(arr_filtered[2].split(" ")[0].replace(",", ""))
+
+        amount = float(arr_filtered[3].split(" ")[0].replace(",", ""))
         parsed_lines.append(
-            {"date": current_date, "account": account, "amount": amount}
+            {
+                "date": current_date,
+                "account": account,
+                "quantity": quantity,
+                "amount": amount,
+            }
         )
     return parsed_lines
 
