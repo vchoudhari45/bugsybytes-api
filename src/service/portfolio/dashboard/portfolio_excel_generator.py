@@ -116,7 +116,6 @@ def print_table(
 
             # Percent fields
             elif header_upper in percent_fields_upper:
-                print(f"Value: {header_upper}: {value}")
                 worksheet.write(
                     row, start_col + col, value * 100, layout["percent_fmt"]
                 )

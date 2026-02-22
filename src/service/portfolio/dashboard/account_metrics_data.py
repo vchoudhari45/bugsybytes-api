@@ -226,29 +226,6 @@ def compute_for_commodity(
     cashflows.append(current_market_value)
     current_cashflows.append(current_market_value)
 
-    print(
-        f"Symbol: {commodity}",
-        f"Cashflows Dates Overall: {[d.strftime('%Y-%m-%d') for d in cashflow_dates]}",
-        f"Cashflows Overall: {cashflows}",
-        f"Current Cashflows Dates: {[d.strftime('%Y-%m-%d') for d in current_cashflow_dates]}",
-        f"Current Cashflow: {current_cashflows}",
-        f"TOTAL INVESTED: {total_invested}",
-        f"CURRENT INVESTED: {current_invested}",
-        f"CURRENT QUANTITY: {current_quantity}",
-        f"AVERAGE COST (OPEN POSITION): {average_cost}",
-        f"CURRENT MARKET VALUE: {current_market_value}",
-        f"REALIZED P&L: {realized_pl}",
-        f"UNREALIZED P&L: {unrealized_pl}",
-        f"DIVIDEND: {dividend}",
-        f"ABSOLUTE RETURN (OVERALL): {absolute_return * 100}",
-        f"CURRENT ABSOLUTE RETURN: {current_absolute_return * 100}",
-        f"CAGR(OVERALL): {cagr * 100}",
-        f"CURRENT CAGR: {current_cagr * 100}",
-        f"DIVIDEND YIELD(OVERALL): {dividend_yield * 100}",
-        f"HOLDING PERIOD(OVERALL): {holding_days}",
-        f"CURRENT HOLDING PERIOD: {current_holding_days}",
-        sep="\n",
-    )
 
     xirr_value = xirr(dates=cashflow_dates, cashflows=cashflows)
     current_xirr_value = xirr(dates=current_cashflow_dates, cashflows=current_cashflows)
@@ -271,6 +248,33 @@ def compute_for_commodity(
 
         if fl_number is not None and str(fl_number).strip() != "":
             output["FL NUMBER"] = fl_number
+
+    print(
+        f"\n\nSymbol: {commodity}",
+        f"CombinedFlow: {combined_flow}",
+        f"Cashflows Dates Overall: {[d.strftime('%Y-%m-%d') for d in cashflow_dates]}",
+        f"Cashflows Overall: {cashflows}",
+        f"Current Cashflows Dates: {[d.strftime('%Y-%m-%d') for d in current_cashflow_dates]}",
+        f"Current Cashflow: {current_cashflows}",
+        f"TOTAL INVESTED: {total_invested}",
+        f"CURRENT INVESTED: {current_invested}",
+        f"CURRENT QUANTITY: {current_quantity}",
+        f"AVERAGE COST (OPEN POSITION): {average_cost}",
+        f"CURRENT MARKET VALUE: {current_market_value}",
+        f"REALIZED P&L: {realized_pl}",
+        f"UNREALIZED P&L: {unrealized_pl}",
+        f"DIVIDEND: {dividend}",
+        f"ABSOLUTE RETURN (OVERALL): {absolute_return * 100}",
+        f"CURRENT ABSOLUTE RETURN: {current_absolute_return * 100}",
+        f"CAGR(OVERALL): {cagr * 100}",
+        f"CURRENT CAGR: {current_cagr * 100}",
+        f"XIRR(OVERALL): {xirr_value * 100}",
+        f"CURRENT XIRR: {current_xirr_value * 100}",
+        f"DIVIDEND YIELD(OVERALL): {dividend_yield * 100}",
+        f"HOLDING PERIOD(OVERALL): {holding_days}",
+        f"CURRENT HOLDING PERIOD: {current_holding_days}",
+        sep="\n",
+    )
 
     output.update(
         {
