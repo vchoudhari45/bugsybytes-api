@@ -14,7 +14,7 @@ from src.service.util.xirr_calculator import xirr
 _AMFI_CACHE = None
 
 
-def fetch_amfi_isin_scheme_map():
+def fetch_amfi_isin_scheme_map(session):
     """
     Fetch NAVAll.txt from AMFI and return dict:
     { ISIN -> Scheme Name }
@@ -26,7 +26,7 @@ def fetch_amfi_isin_scheme_map():
         return _AMFI_CACHE
 
     url = "https://portal.amfiindia.com/spages/NAVAll.txt"
-    response = requests.get(url, timeout=30)
+    response = session.get(url, timeout=30)
     response.raise_for_status()
 
     _AMFI_CACHE = {}
@@ -49,11 +49,11 @@ def fetch_amfi_isin_scheme_map():
     return _AMFI_CACHE
 
 
-def get_company_id(company_name):
+def get_company_id(company_name, session):
     company_name = company_name.replace("-", " ")
     url = f"https://www.screener.in/api/company/search/?q={requests.utils.quote(company_name)}"
     try:
-        response = requests.get(url)
+        response = session.get(url, timeout=15)
         response.raise_for_status()
         data = response.json()
         if not data:
@@ -65,7 +65,7 @@ def get_company_id(company_name):
         return None
 
 
-def get_metrics(company_id):
+def get_metrics(company_id, session):
     if not company_id:
         return {}
     url = (
@@ -74,7 +74,7 @@ def get_metrics(company_id):
         "&days=700"
     )
     try:
-        response = requests.get(url)
+        response = session.get(url, timeout=15)
         response.raise_for_status()
         data = response.json()
         metrics = {}
@@ -110,7 +110,14 @@ def find_fund_by_isin(mutual_funds, account_name, isin):
 
 
 def compute_for_commodity(
-    commodity, amfi_isin_map, report, ledger_files, today, mutual_funds, account_name
+    commodity,
+    amfi_isin_map,
+    report,
+    ledger_files,
+    today,
+    mutual_funds,
+    account_name,
+    session,
 ):
     display_name = amfi_isin_map.get(commodity, commodity)
 
@@ -132,12 +139,11 @@ def compute_for_commodity(
     # Validate single current value
     if balance and len(balance) > 1:
         print(
-            "Error: A single commodity cannot have more than one balance value, Please check account_metrics_data.py"
+            "Error: A single commodity cannot have more than one balance value, "
+            "Please check account_metrics_data.py"
         )
         sys.exit(1)
 
-    total_inflow = 0.0
-    total_invested = sys.float_info.min
     current_invested = 0.0
     current_quantity = 0.0
     realized_pl = 0.0
@@ -146,8 +152,6 @@ def compute_for_commodity(
     current_capital_first_investment_date = datetime.max.date()
     cashflow_dates = []
     cashflows = []
-    current_cashflow_dates = []
-    current_cashflows = []
     for entry in combined_flow:
         date_value = entry["date"]
         if isinstance(date_value, str):
@@ -165,23 +169,13 @@ def compute_for_commodity(
         elif account.startswith("income:capitalgains"):
             cashflow_dates.append(date_obj)
             cashflows.append(amount)
-            current_cashflow_dates.append(date_obj)
-            current_cashflows.append(amount)
             realized_pl += amount
         else:
             cashflow_dates.append(date_obj)
             cashflows.append(amount)
-            current_cashflow_dates.append(date_obj)
-            current_cashflows.append(amount)
             current_invested += amount
             current_quantity += quantity
-            if amount < 0:
-                total_inflow += amount
             if current_quantity == 0:
-                total_invested = max(total_invested, abs(total_inflow))
-                total_inflow = 0.0
-                current_cashflow_dates = []
-                current_cashflows = []
                 current_capital_first_investment_date = date_obj
 
     # handling for float issue
@@ -191,14 +185,7 @@ def compute_for_commodity(
     if current_capital_first_investment_date == datetime.max.date():
         current_capital_first_investment_date = first_investment_date
 
-    # handling cases where quantity never becomes zero and total_invested is never assigned
-    if total_invested == sys.float_info.min:
-        total_invested = abs(total_inflow)
-
-    # handling cases where current_invested > total_invested
     current_invested = abs(current_invested)
-    total_invested = max(total_invested, current_invested)
-
     current_market_value = float(balance[0]["amount"]) if balance else 0.0
 
     average_cost = (
@@ -207,100 +194,90 @@ def compute_for_commodity(
     unrealized_pl = round(current_market_value - current_invested, 2)
     total_pl = realized_pl + unrealized_pl
 
-    absolute_return = (total_pl / total_invested) if total_invested != 0 else 0.0
     current_absolute_return = (
         unrealized_pl / current_invested if current_invested != 0 else 0.0
     )
 
-    dividend_yield = (dividend / total_invested) if total_invested != 0 else 0.0
-
-    holding_days = (date.today() - first_investment_date).days
     current_holding_days = (date.today() - current_capital_first_investment_date).days
-
-    cagr = (1 + absolute_return) ** (365 / holding_days) - 1
     current_cagr = (1 + current_absolute_return) ** (365 / current_holding_days) - 1
 
-    # add current market value
     cashflow_dates.append(date.today())
-    current_cashflow_dates.append(date.today())
     cashflows.append(current_market_value)
-    current_cashflows.append(current_market_value)
-
 
     xirr_value = xirr(dates=cashflow_dates, cashflows=cashflows)
-    current_xirr_value = xirr(dates=current_cashflow_dates, cashflows=current_cashflows)
+
+    is_mf = display_name.lower() != commodity.lower()
 
     # Get metrics
-    company_id = get_company_id(display_name)
-    metrics = get_metrics(company_id)
-
-    # Append row
-    output = {"SYMBOL": commodity}
+    metrics = {}
+    if not is_mf:
+        company_id = get_company_id(display_name, session)
+        metrics = get_metrics(company_id, session)
 
     # adding display name for mutual fund
-    is_mf = display_name.lower() != commodity.lower()
     google_finance_code = ""
     if is_mf:
-        output["NAME"] = display_name
         fund = find_fund_by_isin(mutual_funds, account_name, commodity)
         fl_number = fund.get("fl_number", "") if fund else ""
         google_finance_code = fund.get("google_finance_code", "") if fund else ""
 
-        if fl_number is not None and str(fl_number).strip() != "":
-            output["FL NUMBER"] = fl_number
-
     print(
-        f"\n\nSymbol: {commodity}",
-        f"CombinedFlow: {combined_flow}",
-        f"Cashflows Dates Overall: {[d.strftime('%Y-%m-%d') for d in cashflow_dates]}",
-        f"Cashflows Overall: {cashflows}",
-        f"Current Cashflows Dates: {[d.strftime('%Y-%m-%d') for d in current_cashflow_dates]}",
-        f"Current Cashflow: {current_cashflows}",
-        f"TOTAL INVESTED: {total_invested}",
+        f"\nSYMBOL: {commodity}",
+        f"DISPLAY NAME: {display_name}",
+        f"CASHFLOW DATES: {[d.strftime('%Y-%m-%d') for d in cashflow_dates]}",
+        f"CASHFLOW: {cashflows}",
         f"CURRENT INVESTED: {current_invested}",
         f"CURRENT QUANTITY: {current_quantity}",
-        f"AVERAGE COST (OPEN POSITION): {average_cost}",
+        f"AVERAGE COST: {average_cost}",
         f"CURRENT MARKET VALUE: {current_market_value}",
         f"REALIZED P&L: {realized_pl}",
         f"UNREALIZED P&L: {unrealized_pl}",
+        f"TOTAL P&L: {total_pl}",
         f"DIVIDEND: {dividend}",
-        f"ABSOLUTE RETURN (OVERALL): {absolute_return * 100}",
         f"CURRENT ABSOLUTE RETURN: {current_absolute_return * 100}",
-        f"CAGR(OVERALL): {cagr * 100}",
         f"CURRENT CAGR: {current_cagr * 100}",
-        f"XIRR(OVERALL): {xirr_value * 100}",
-        f"CURRENT XIRR: {current_xirr_value * 100}",
-        f"DIVIDEND YIELD(OVERALL): {dividend_yield * 100}",
-        f"HOLDING PERIOD(OVERALL): {holding_days}",
-        f"CURRENT HOLDING PERIOD: {current_holding_days}",
+        f"XIRR: {xirr_value * 100}",
+        f"CURRENT HOLDING DAYS: {current_holding_days}",
         sep="\n",
     )
 
-    output.update(
-        {
-            "TOTAL INVESTED": total_invested,
-            "CURRENT INVESTED": current_invested,
-            "CURRENT QUANTITY": current_quantity,
-            "AVERAGE COST (OPEN POSITION)": average_cost,
-            "CURRENT MARKET VALUE": current_market_value,
-            "REALIZED P&L": realized_pl,
-            "UNREALIZED P&L": unrealized_pl,
-            "DIVIDEND": dividend,
-            "ABSOLUTE RETURN (OVERALL)": absolute_return,
-            "CURRENT ABSOLUTE RETURN": current_absolute_return,
-            "CAGR(OVERALL)": cagr,
-            "CURRENT CAGR": current_cagr,
-            "XIRR(OVERALL)": xirr_value,
-            "CURRENT XIRR": current_xirr_value,
-            "DIVIDEND YIELD(OVERALL)": dividend_yield,
-            "HOLDING PERIOD(OVERALL)": holding_days,
-            "CURRENT HOLDING PERIOD": current_holding_days,
-        }
-    )
-    output.update(metrics)
-    output.update(
-        {"NEWS LINK": get_google_finance_link(is_mf, google_finance_code, commodity)}
-    )
+    output = {}
+
+    # 1. SYMBOL
+    output["SYMBOL"] = commodity
+
+    # 2. MF-specific fields (must come right after SYMBOL)
+    if is_mf:
+        output["NAME"] = display_name
+        if fl_number is not None and str(fl_number).strip():
+            output["FL NUMBER"] = fl_number
+
+    # 3. Core fields
+    output["INVESTED"] = current_invested
+    output["QUANTITY"] = current_quantity
+    output["AVERAGE COST"] = average_cost
+    output["MARKET VALUE"] = current_market_value
+    output["REALIZED P&L"] = realized_pl
+    output["UNREALIZED P&L"] = unrealized_pl
+    output["TOTAL P&L"] = total_pl
+    output["DIVIDEND"] = dividend
+    output["ABSOLUTE RETURN"] = current_absolute_return
+    output["CAGR"] = current_cagr if current_holding_days > 180 else 0.0
+
+    # 4. XIRR (must come right after CAGR)
+    if is_mf:
+        output["XIRR"] = xirr_value if current_holding_days > 180 else 0.0
+
+    # 5. Holding days
+    output["HOLDING DAYS"] = current_holding_days
+
+    # 6. Metrics
+    for key, value in metrics.items():
+        output[key] = value
+
+    # 7. News link
+    output["NEWS LINK"] = get_google_finance_link(is_mf, google_finance_code, commodity)
+
     return output
 
 
@@ -322,8 +299,8 @@ def calculate_individual_xirr_report_data(
 
 def get_account_performance_metrics_data(report, ledger_files, mutual_funds):
     today = datetime.today().date()
-
-    amfi_isin_map = fetch_amfi_isin_scheme_map()
+    session = requests.Session()
+    amfi_isin_map = fetch_amfi_isin_scheme_map(session)
 
     # Get all the commodities
     commodities = get_ledger_cli_output_by_config(
@@ -341,8 +318,9 @@ def get_account_performance_metrics_data(report, ledger_files, mutual_funds):
             today=today,
             mutual_funds=mutual_funds,
             account_name=report["account_name"],
+            session=session,
         )
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             results = executor.map(compute_func, commodities)
             xirr_output = [r for r in results if r is not None]
 

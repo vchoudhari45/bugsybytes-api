@@ -35,21 +35,21 @@ from src.service.portfolio.ledger.ledger_cli_output_parser import (
 # Fields
 amount_fields = [
     # retirement data fields
-    "INVESTMENT AMOUNT",
+    "INVESTED AMOUNT",
     "INFLATION ADJUSTED YEARLY EXPENSES",
     "INCOME",
     "TAX",
     "INVESTMENT AMOUNT FOR NEXT YEAR",
     # account metrics data field
-    "TOTAL INVESTED",
-    "CURRENT INVESTED",
-    "CURRENT QUANTITY" "AVERAGE COST (OPEN POSITION)",
-    "CURRENT MARKET VALUE",
+    "INVESTED",
+    "QUANTITY",
+    "AVERAGE COST",
+    "MARKET VALUE",
     "REALIZED P&L",
     "UNREALIZED P&L",
+    "TOTAL P&L",
     "DIVIDEND",
-    "HOLDING PERIOD(OVERALL)",
-    "CURRENT HOLDING PERIOD",
+    "HOLDING DAYS",
     "EPS",
     "PE",
     "MEDIAN PE",
@@ -61,13 +61,9 @@ percent_fields = [
     # gsec data fields
     "XIRR",
     # account metrics data field
-    "ABSOLUTE RETURN (OVERALL)",
-    "CURRENT ABSOLUTE RETURN",
-    "CAGR(OVERALL)",
-    "CURRENT CAGR",
-    "DIVIDEND YIELD(OVERALL)",
-    "XIRR(OVERALL)",
-    "CURRENT XIRR",
+    "ABSOLUTE RETURN",
+    "CAGR",
+    "XIRR",
 ]
 
 link_fields = ["NEWS LINK"]
