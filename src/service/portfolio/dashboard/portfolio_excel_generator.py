@@ -34,6 +34,8 @@ from src.service.portfolio.ledger.ledger_cli_output_parser import (
 
 # Fields
 amount_fields = [
+    # dashboard
+    "Amount",
     # retirement data fields
     "INVESTED AMOUNT",
     "INFLATION ADJUSTED YEARLY EXPENSES",
