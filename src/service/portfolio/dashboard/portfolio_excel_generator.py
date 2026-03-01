@@ -78,6 +78,55 @@ percent_fields = [
 link_fields = ["NEWS LINK"]
 
 
+def print_kpi_cards(
+    worksheet, layout, kpi_list, start_row, start_col=0, cards_per_row=4
+):
+    amount_fields_upper = {f.upper() for f in amount_fields}
+    percent_fields_upper = {f.upper() for f in percent_fields}
+
+    CARD_COLS = 2
+    CARD_ROWS = 3
+    col_gap = 1
+
+    row = start_row
+    col = start_col
+    cards_in_row = 0
+    max_row = start_row
+
+    for item in kpi_list:
+        label = item.get("KPI", "")
+        value = item.get("VALUE", "")
+        label_upper = label.upper()
+
+        worksheet.merge_range(
+            row, col, row, col + CARD_COLS - 1, label, layout["kpi_label_fmt"]
+        )
+
+        if label_upper in percent_fields_upper:
+            val_fmt = "kpi_value_fmt_percent"
+            display_val = value / 100 if isinstance(value, (int, float)) else value
+        elif label_upper in amount_fields_upper or isinstance(value, (int, float)):
+            val_fmt = "kpi_value_fmt_amount"
+            display_val = value
+        else:
+            val_fmt = "kpi_value_fmt_text"
+            display_val = value
+
+        worksheet.merge_range(
+            row + 1, col, row + 1, col + CARD_COLS - 1, display_val, layout[val_fmt]
+        )
+        max_row = max(max_row, row + CARD_ROWS)
+        col += CARD_COLS + col_gap
+        cards_in_row += 1
+
+        if cards_in_row >= cards_per_row:
+            row = max_row + 1
+            col = start_col
+            cards_in_row = 0
+
+    return max_row + 2
+
+
 def print_table(
     worksheet, workbook, layout, title, data, start_row, start_col, sort=True
 ):
@@ -359,32 +408,24 @@ if __name__ == "__main__":
         else:
             portfolio_cagr = 0.0
 
-        kpi_row = 0
-        ws_xirr.write(kpi_row, 0, "INVESTED")
-        ws_xirr.write(kpi_row, 1, total_invested, layout["amount_fmt"])
-
-        ws_xirr.write(kpi_row, 3, "MARKET VALUE")
-        ws_xirr.write(kpi_row, 4, total_market_value, layout["amount_fmt"])
-
-        ws_xirr.write(kpi_row + 1, 0, "REALIZED P&L")
-        ws_xirr.write(kpi_row + 1, 1, total_realized, layout["amount_fmt"])
-
-        ws_xirr.write(kpi_row + 1, 3, "UNREALIZED P&L")
-        ws_xirr.write(kpi_row + 1, 4, total_unrealized, layout["amount_fmt"])
-
-        ws_xirr.write(kpi_row + 2, 0, "TOTAL P&L")
-        ws_xirr.write(kpi_row + 2, 1, total_pl, layout["amount_fmt"])
-
-        ws_xirr.write(kpi_row + 2, 3, "DIVIDEND")
-        ws_xirr.write(kpi_row + 2, 4, total_dividend, layout["amount_fmt"])
-
-        ws_xirr.write(kpi_row + 3, 0, "ABSOLUTE RETURN")
-        ws_xirr.write(
-            kpi_row + 3, 1, portfolio_absolute_return * 100, layout["percent_fmt"]
+        kpi_list = [
+            {"KPI": "INVESTED", "VALUE": total_invested},
+            {"KPI": "MARKET VALUE", "VALUE": total_market_value},
+            {"KPI": "REALIZED P&L", "VALUE": total_realized},
+            {"KPI": "UNREALIZED P&L", "VALUE": total_unrealized},
+            {"KPI": "TOTAL P&L", "VALUE": total_pl},
+            {"KPI": "DIVIDEND", "VALUE": total_dividend},
+            {"KPI": "ABSOLUTE RETURN", "VALUE": portfolio_absolute_return * 100},
+            {"KPI": "CAGR", "VALUE": portfolio_cagr * 100},
+        ]
+        kpi_end_row = print_kpi_cards(
+            worksheet=ws_xirr,
+            layout=layout,
+            kpi_list=kpi_list,
+            start_row=0,
+            start_col=0,
+            cards_per_row=3,
         )
-
-        ws_xirr.write(kpi_row + 3, 3, "CAGR")
-        ws_xirr.write(kpi_row + 3, 4, portfolio_cagr * 100, layout["percent_fmt"])
 
         print_table(
             worksheet=ws_xirr,
@@ -392,7 +433,7 @@ if __name__ == "__main__":
             layout=layout,
             title=report_name,
             data=report_data,
-            start_row=6,
+            start_row=kpi_end_row,
             start_col=0,
         )
 
@@ -426,19 +467,18 @@ if __name__ == "__main__":
         )
         number_of_gsecs = round(len(xirr_data), 2)
         portfolio_xirr = round(report.get("portfolio_xirr", 0.0), 2)
-        kpi_data = [
+        kpi_list = [
             {"KPI": "INVESTED", "VALUE": total_invested},
             {"KPI": "NUMBER OF G-SECS", "VALUE": number_of_gsecs},
             {"KPI": "XIRR", "VALUE": portfolio_xirr * 100},
         ]
-        print_table(
+        kpi_end_row = print_kpi_cards(
             worksheet=ws_xirr,
-            workbook=workbook,
             layout=layout,
-            title=f"{report_name_xirr} KPIs",
-            data=kpi_data,
+            kpi_list=kpi_list,
             start_row=0,
             start_col=0,
+            cards_per_row=3,
         )
         print_table(
             worksheet=ws_xirr,
@@ -446,7 +486,7 @@ if __name__ == "__main__":
             layout=layout,
             title=report_name_xirr,
             data=xirr_data,
-            start_row=len(kpi_data) + 3,
+            start_row=kpi_end_row,
             start_col=0,
         )
 
@@ -460,7 +500,7 @@ if __name__ == "__main__":
     retirement_year = int(retirement_tracker_config["retirement_year"])
     end_year = int(retirement_tracker_config["end_year"])
 
-    kpi_data = [
+    kpi_list = [
         {"KPI": "RETIREMENT YEAR", "VALUE": retirement_year},
         {"KPI": "END YEAR", "VALUE": end_year},
         {"KPI": "INFLATION (%)", "VALUE": inflation},
@@ -469,29 +509,26 @@ if __name__ == "__main__":
         {"KPI": "BASE YEARLY EXPENSES", "VALUE": yearly_expenses},
         {"KPI": "INVESTED AMOUNT", "VALUE": investment_amount},
     ]
-    # Print KPI Table First
-    print_table(
+
+    kpi_end_row = print_kpi_cards(
         worksheet=ws_retirement,
-        workbook=workbook,
         layout=layout,
-        title="Retirement Assumptions",
-        data=kpi_data,
+        kpi_list=kpi_list,
         start_row=0,
         start_col=0,
+        cards_per_row=3,
     )
-    # Print Retirement Projection Below KPI
-    projection_start_row = len(kpi_data) + 3
     print_table(
         worksheet=ws_retirement,
         workbook=workbook,
         layout=layout,
         title="Retirement Projection",
         data=retirement_tracking_data,
-        start_row=projection_start_row,
+        start_row=kpi_end_row,
         start_col=0,
     )
     # Freeze after headers of projection table
-    ws_retirement.freeze_panes(projection_start_row + 1, 1)
+    ws_retirement.freeze_panes(kpi_end_row + 1, 1)
 
     workbook.close()
 
