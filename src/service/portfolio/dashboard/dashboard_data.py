@@ -101,12 +101,12 @@ def calculate_summary_data(
             )
             sys.exit(1)
 
-        stock_allocation = mutual_fund_config[commodity]["approximate_allocation"][
-            "equity"
-        ]
-        bond_allocation = mutual_fund_config[commodity]["approximate_allocation"][
-            "debt"
-        ]
+        stock_allocation = (
+            mutual_fund_config[commodity]["approximate_allocation"]["equity"] / 100
+        )
+        bond_allocation = (
+            mutual_fund_config[commodity]["approximate_allocation"]["debt"] / 100
+        )
         balance = (
             float(balance_for_commodity[0]["amount"]) if balance_for_commodity else 0.0
         )
@@ -126,13 +126,13 @@ def calculate_summary_data(
         {"Metric": "Assets", "Amount": assets},
         {"Metric": "Liabilities", "Amount": liabilities},
         {"Metric": "Liquid Cash", "Amount": liquid_cash},
-        {"Metric": "Income (Current Period)", "Amount": income},
+        {"Metric": "Income (Current Period)", "Amount": abs(income)},
         {"Metric": "Expenses (Current Period)", "Amount": expenses},
         {"Metric": "Stock", "Amount": round(stock_total, 2)},
         {"Metric": "Bond", "Amount": round(bond_total, 2)},
         {
             "Metric": "Stock:Bond",
-            "Amount": f"{stock_pct * 100:.0f} : {bond_pct * 100:.0f}",
+            "Amount": f"{stock_pct * 100:.0f}:{bond_pct * 100:.0f}",
         },
     ]
     return summary_data
