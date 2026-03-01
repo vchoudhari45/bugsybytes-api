@@ -205,12 +205,12 @@ if __name__ == "__main__":
     with open(DASHBOARD_LAYOUT_CONFIG_PATH, "r") as f:
         dashboard_layout_config = yaml.safe_load(f)
 
-    zero_balance_accounts_config = dashboard_config["dashboard"][
-        "zero_balance_accounts"
-    ]
-    zero_balance_accounts_pending_config = dashboard_config["dashboard"][
-        "zero_balance_accounts_pending"
-    ]
+    zero_balance_accounts_config = (
+        dashboard_config["dashboard"]["zero_balance_accounts"] or []
+    )
+    zero_balance_accounts_pending_config = (
+        dashboard_config["dashboard"]["zero_balance_accounts_pending"] or []
+    )
     categories = dashboard_config["dashboard"]["categories"]
     individual_xirr_reports_config = dashboard_config["dashboard"][
         "individual_xirr_reports"
