@@ -1,3 +1,10 @@
+import sys
+
+from src.service.portfolio.ledger.ledger_cli_output_parser import (
+    get_ledger_cli_output_by_config,
+)
+
+
 def is_zero_account(account, zero_list):
     return any(account.startswith(z) for z in zero_list)
 
@@ -40,7 +47,12 @@ def calculate_category_tables_data(
 
 
 def calculate_summary_data(
-    balance_sheet_data, income_statement_data, zero_balance_accounts_config
+    balance_sheet_data,
+    income_statement_data,
+    zero_balance_accounts_config,
+    mutual_funds,
+    ledger_files,
+    stock_vs_bond_config,
 ):
     assets = sum_accounts(balance_sheet_data, "Assets", zero_balance_accounts_config)
     liabilities = sum_accounts(
@@ -53,6 +65,62 @@ def calculate_summary_data(
     expenses = sum_accounts(
         income_statement_data, "Expenses", zero_balance_accounts_config
     )
+
+    # stock vs bond total calculation logic
+    stock_total = 0
+    bond_total = 0
+    gsec_balance = sum_accounts(
+        balance_sheet_data, "Assets:Investments:GSec", zero_balance_accounts_config
+    )
+    stock_balance = sum_accounts(
+        balance_sheet_data, "Assets:Investments:Equity", zero_balance_accounts_config
+    )
+    stock_total += stock_balance
+    bond_total += gsec_balance
+    mutual_funds_commodities_data = get_ledger_cli_output_by_config(
+        config=stock_vs_bond_config["commodities"],
+        ledger_files=ledger_files,
+        commodity=None,
+        command_type="commodities",
+    )
+    mutual_fund_config = mutual_funds["Assets:Investments:MutualFunds"]
+    for commodity in mutual_funds_commodities_data:
+        if commodity == "INR":
+            continue
+        balance_for_commodity = get_ledger_cli_output_by_config(
+            config=stock_vs_bond_config["balance"],
+            ledger_files=ledger_files,
+            commodity=commodity,
+            command_type="balance",
+        )
+        # Validate single current value
+        if balance_for_commodity and len(balance_for_commodity) > 1:
+            print(
+                "Error: A single commodity cannot have more than one balance value, "
+                "Please check dashboard_data.py"
+            )
+            sys.exit(1)
+
+        stock_allocation = mutual_fund_config[commodity]["approximate_allocation"][
+            "equity"
+        ]
+        bond_allocation = mutual_fund_config[commodity]["approximate_allocation"][
+            "debt"
+        ]
+        balance = (
+            float(balance_for_commodity[0]["amount"]) if balance_for_commodity else 0.0
+        )
+        stock_total += stock_allocation * balance
+        bond_total += bond_allocation * balance
+
+    total = stock_total + bond_total
+    if total:
+        stock_pct = stock_total / total
+        bond_pct = bond_total / total
+    else:
+        stock_pct = 0
+        bond_pct = 0
+
     summary_data = [
         {"Metric": "Net Worth", "Amount": assets - liabilities},
         {"Metric": "Assets", "Amount": assets},
@@ -60,6 +128,12 @@ def calculate_summary_data(
         {"Metric": "Liquid Cash", "Amount": liquid_cash},
         {"Metric": "Income (Current Period)", "Amount": income},
         {"Metric": "Expenses (Current Period)", "Amount": expenses},
+        {"Metric": "Stock", "Amount": round(stock_total, 2)},
+        {"Metric": "Bond", "Amount": round(bond_total, 2)},
+        {
+            "Metric": "Stock:Bond",
+            "Amount": f"{stock_pct * 100:.0f} : {bond_pct * 100:.0f}",
+        },
     ]
     return summary_data
 

@@ -212,6 +212,9 @@ if __name__ == "__main__":
         balance_sheet_data=balance_sheet_data,
         income_statement_data=income_statement_data,
         zero_balance_accounts_config=zero_balance_accounts_config,
+        mutual_funds=mutual_funds,
+        ledger_files=ledger_files,
+        stock_vs_bond_config=dashboard_config["dashboard"]["stock_vs_bond"],
     )
 
     # Allocation Data
