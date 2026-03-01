@@ -32,12 +32,16 @@ def calculate_retirement_data(retirement_tracker_config):
         retirement_data.append(
             {
                 "YEAR": year,
+                "INFLATION (%)": round(inflation * 100, 2),
+                "RATE OF INTEREST (%)": round(rate_of_interest * 100, 2),
+                "TAX (%)": round(tax * 100, 2),
+                "BASE YEARLY EXPENSES": round(yearly_expenses, 2),
                 "INVESTMENT AMOUNT": round(investment_amount_current_year, 2),
                 "INFLATION ADJUSTED YEARLY EXPENSES": round(
                     inflation_adjusted_yearly_expenses, 2
                 ),
                 "INCOME": round(income, 2),
-                "TAX": round(tax_current_year, 2),
+                "TAX AMOUNT": round(tax_current_year, 2),
                 "INVESTMENT AMOUNT FOR NEXT YEAR": round(investment_amount, 2),
             }
         )

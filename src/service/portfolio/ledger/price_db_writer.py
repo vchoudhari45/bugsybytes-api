@@ -341,18 +341,21 @@ def write_prices_for_year(year, us_commodities, ind_commodities, ind_mf_commodit
 
     # ---------- Update file from nse live data for GSec  ----------
     if not nse_gsec_files.empty:
-        df = nse_gsec_files[["SYMBOL", "DATE", "LTP", "PREV.CLOSE"]].copy()
+        df = nse_gsec_files.copy()
 
+        # Filter out Treasury Bills and GS series
+        df = df[(df["SERIES"] != "TB") & (~df["SYMBOL"].str.startswith("GS", na=False))]
         df.rename(columns={"PREV.CLOSE": "PREV_CLOSE"}, inplace=True)
-        df["DATE"] = pd.to_datetime(df["DATE"])
+        df["DATE"] = pd.to_datetime(df["DATE"], errors="raise")
 
         for row in df.itertuples(index=False):
+            if pd.isna(row.DATE):
+                continue
             d = row.DATE.strftime("%Y-%m-%d")
-
             ltp = row.LTP
 
             # If LTP is '-' use PREV.CLOSE
-            if ltp == "-" or pd.isna(ltp):
+            if not ltp or ltp == "-" or pd.isna(ltp):
                 rate = float(str(row.PREV_CLOSE).replace(",", ""))
             else:
                 rate = float(str(ltp).replace(",", ""))

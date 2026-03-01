@@ -40,6 +40,9 @@ amount_fields = [
     "INCOME",
     "TAX",
     "INVESTMENT AMOUNT FOR NEXT YEAR",
+    "RETIREMENT YEAR",
+    "END YEAR",
+    "BASE YEARLY EXPENSES",
     # account metrics data field
     "INVESTED",
     "QUANTITY",
@@ -50,6 +53,7 @@ amount_fields = [
     "TOTAL P&L",
     "DIVIDEND",
     "HOLDING DAYS",
+    "NUMBER OF G-SECS",
     "EPS",
     "PE",
     "MEDIAN PE",
@@ -57,13 +61,16 @@ amount_fields = [
 
 percent_fields = [
     # dashboard data fields
-    "%",
+    "% Allocation",
     # gsec data fields
     "XIRR",
     # account metrics data field
     "ABSOLUTE RETURN",
     "CAGR",
     "XIRR",
+    "INFLATION (%)",
+    "RATE OF INTEREST (%)",
+    "TAX (%)",
 ]
 
 link_fields = ["NEWS LINK"]
@@ -312,14 +319,75 @@ if __name__ == "__main__":
         if not report_data:
             continue
         ws_xirr = workbook.add_worksheet(report_name)
-        ws_xirr.freeze_panes(1, 1)
+        ws_xirr.freeze_panes(7, 1)
+
+        # KPI Calculations
+        total_invested = round(sum(row.get("INVESTED", 0) for row in report_data), 2)
+        total_market_value = round(
+            sum(row.get("MARKET VALUE", 0) for row in report_data), 2
+        )
+        total_realized = round(
+            sum(row.get("REALIZED P&L", 0) for row in report_data), 2
+        )
+        total_unrealized = round(
+            sum(row.get("UNREALIZED P&L", 0) for row in report_data), 2
+        )
+        total_pl = round(sum(row.get("TOTAL P&L", 0) for row in report_data), 2)
+        total_dividend = round(sum(row.get("DIVIDEND", 0) for row in report_data), 2)
+        max_holding_days = round(
+            max(row.get("HOLDING DAYS", 0) for row in report_data), 2
+        )
+
+        # Absolute Return (Portfolio Level)
+        if total_invested > 0:
+            portfolio_absolute_return = (
+                total_market_value - total_invested
+            ) / total_invested
+        else:
+            portfolio_absolute_return = 0.0
+
+        # Portfolio CAGR
+        if total_invested > 0 and max_holding_days > 0:
+            portfolio_cagr = (total_market_value / total_invested) ** (
+                365 / max_holding_days
+            ) - 1
+        else:
+            portfolio_cagr = 0.0
+
+        kpi_row = 0
+        ws_xirr.write(kpi_row, 0, "INVESTED")
+        ws_xirr.write(kpi_row, 1, total_invested, layout["amount_fmt"])
+
+        ws_xirr.write(kpi_row, 3, "MARKET VALUE")
+        ws_xirr.write(kpi_row, 4, total_market_value, layout["amount_fmt"])
+
+        ws_xirr.write(kpi_row + 1, 0, "REALIZED P&L")
+        ws_xirr.write(kpi_row + 1, 1, total_realized, layout["amount_fmt"])
+
+        ws_xirr.write(kpi_row + 1, 3, "UNREALIZED P&L")
+        ws_xirr.write(kpi_row + 1, 4, total_unrealized, layout["amount_fmt"])
+
+        ws_xirr.write(kpi_row + 2, 0, "TOTAL P&L")
+        ws_xirr.write(kpi_row + 2, 1, total_pl, layout["amount_fmt"])
+
+        ws_xirr.write(kpi_row + 2, 3, "DIVIDEND")
+        ws_xirr.write(kpi_row + 2, 4, total_dividend, layout["amount_fmt"])
+
+        ws_xirr.write(kpi_row + 3, 0, "ABSOLUTE RETURN")
+        ws_xirr.write(
+            kpi_row + 3, 1, portfolio_absolute_return * 100, layout["percent_fmt"]
+        )
+
+        ws_xirr.write(kpi_row + 3, 3, "CAGR")
+        ws_xirr.write(kpi_row + 3, 4, portfolio_cagr * 100, layout["percent_fmt"])
+
         print_table(
             worksheet=ws_xirr,
             workbook=workbook,
             layout=layout,
             title=report_name,
             data=report_data,
-            start_row=0,
+            start_row=6,
             start_col=0,
         )
 
@@ -327,8 +395,11 @@ if __name__ == "__main__":
     for report in gsec_individual_xirr_reports_data:
         report_name = report["name"]
         cashflow_data = report["cashflow_data"]
+
         if not cashflow_data:
             continue
+
+        # Cashflow Sheet
         ws_cashflow = workbook.add_worksheet(report_name)
         ws_cashflow.freeze_panes(1, 1)
         print_table(
@@ -340,32 +411,82 @@ if __name__ == "__main__":
             start_row=0,
             start_col=0,
         )
-        report_name_xirr = f"{report["name"]} Summary"
+
+        # Summary Sheet
+        report_name_xirr = f"{report['name']} Summary"
         xirr_data = report["xirr_data"]
         ws_xirr = workbook.add_worksheet(report_name_xirr)
-        ws_xirr.freeze_panes(1, 1)
+        total_invested = round(
+            sum(row.get("INVESTMENT AMOUNT", 0) for row in xirr_data), 2
+        )
+        number_of_gsecs = round(len(xirr_data), 2)
+        portfolio_xirr = round(report.get("portfolio_xirr", 0.0), 2)
+        kpi_data = [
+            {"KPI": "INVESTED", "VALUE": total_invested},
+            {"KPI": "NUMBER OF G-SECS", "VALUE": number_of_gsecs},
+            {"KPI": "XIRR", "VALUE": portfolio_xirr * 100},
+        ]
+        print_table(
+            worksheet=ws_xirr,
+            workbook=workbook,
+            layout=layout,
+            title=f"{report_name_xirr} KPIs",
+            data=kpi_data,
+            start_row=0,
+            start_col=0,
+        )
         print_table(
             worksheet=ws_xirr,
             workbook=workbook,
             layout=layout,
             title=report_name_xirr,
             data=xirr_data,
-            start_row=0,
+            start_row=len(kpi_data) + 3,
             start_col=0,
         )
 
     # Render retirement tracking data
     ws_retirement = workbook.add_worksheet("Retirement")
-    ws_retirement.freeze_panes(1, 1)
+    inflation = float(retirement_tracker_config["inflation"])
+    rate_of_interest = float(retirement_tracker_config["rate_of_interest"])
+    tax = float(retirement_tracker_config["tax"])
+    yearly_expenses = float(retirement_tracker_config["yearly_expenses"])
+    investment_amount = float(retirement_tracker_config["investment_amount"])
+    retirement_year = int(retirement_tracker_config["retirement_year"])
+    end_year = int(retirement_tracker_config["end_year"])
+
+    kpi_data = [
+        {"KPI": "RETIREMENT YEAR", "VALUE": retirement_year},
+        {"KPI": "END YEAR", "VALUE": end_year},
+        {"KPI": "INFLATION (%)", "VALUE": inflation},
+        {"KPI": "RATE OF INTEREST (%)", "VALUE": rate_of_interest},
+        {"KPI": "TAX (%)", "VALUE": tax},
+        {"KPI": "BASE YEARLY EXPENSES", "VALUE": yearly_expenses},
+        {"KPI": "INVESTED AMOUNT", "VALUE": investment_amount},
+    ]
+    # Print KPI Table First
     print_table(
         worksheet=ws_retirement,
         workbook=workbook,
         layout=layout,
-        title="Retirement",
-        data=retirement_tracking_data,
+        title="Retirement Assumptions",
+        data=kpi_data,
         start_row=0,
         start_col=0,
     )
+    # Print Retirement Projection Below KPI
+    projection_start_row = len(kpi_data) + 3
+    print_table(
+        worksheet=ws_retirement,
+        workbook=workbook,
+        layout=layout,
+        title="Retirement Projection",
+        data=retirement_tracking_data,
+        start_row=projection_start_row,
+        start_col=0,
+    )
+    # Freeze after headers of projection table
+    ws_retirement.freeze_panes(projection_start_row + 1, 1)
 
     workbook.close()
 

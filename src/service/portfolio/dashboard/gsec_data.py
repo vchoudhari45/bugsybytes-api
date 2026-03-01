@@ -1,5 +1,6 @@
 import concurrent.futures
 import sys
+from collections import defaultdict
 from functools import partial
 
 import pandas as pd
@@ -115,42 +116,53 @@ def calculate_gsec_individual_xirr_report_data(
         # Build Pivoted Cashflow Table
         all_dates = set()
         symbol_cashflow_map = {}
+        portfolio_cashflow_map = defaultdict(float)
 
         for xirr_data, cashflow_data in results:
             symbol = xirr_data["SYMBOL"]
             symbol_cashflow_map[symbol] = {}
 
             for dt, entry in cashflow_data.items():
-                cashflow_value = entry.get("total_cashflow", 0.0)
-                symbol_cashflow_map[symbol][dt] = round(cashflow_value, 2)
+                cashflow_value = round(entry.get("total_cashflow", 0.0), 2)
+                symbol_cashflow_map[symbol][dt] = cashflow_value
                 all_dates.add(dt)
+                portfolio_cashflow_map[dt] += cashflow_value
 
         sorted_dates = sorted(all_dates)
         sorted_symbols = sorted(symbol_cashflow_map.keys())
 
         cashflow_rows = []
-
         for dt in sorted_dates:
             row = {"DATE": dt}
-
             payday = False
             for symbol in sorted_symbols:
                 value = symbol_cashflow_map[symbol].get(dt, 0.0)
                 row[symbol] = value
-
                 # If any symbol pays positive cashflow → PAY DAY
                 if value > 0:
                     payday = True
-
             row["PAY DAY"] = payday
-
             cashflow_rows.append(row)
+
+        portfolio_dates = []
+        portfolio_amounts = []
+        for dt in sorted(portfolio_cashflow_map.keys()):
+            portfolio_dates.append(dt)
+            portfolio_amounts.append(portfolio_cashflow_map[dt])
+
+        portfolio_xirr_value = 0.0
+        if portfolio_dates and portfolio_amounts and len(portfolio_dates) > 1:
+            portfolio_xirr_value = xirr(
+                dates=portfolio_dates,
+                cashflows=portfolio_amounts,
+            )
 
         gsec_individual_xirr_reports_data.append(
             {
                 "name": report["name"],
                 "xirr_data": xirr_rows,
                 "cashflow_data": cashflow_rows,
+                "portfolio_xirr": portfolio_xirr_value,
             }
         )
 

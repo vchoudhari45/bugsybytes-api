@@ -58,7 +58,8 @@ def calculate_summary_data(
         {"Metric": "Assets", "Amount": assets},
         {"Metric": "Liabilities", "Amount": liabilities},
         {"Metric": "Liquid Cash", "Amount": liquid_cash},
-        {"Metric": "Cashflow (Current Period)", "Amount": income - expenses},
+        {"Metric": "Income (Current Period)", "Amount": income},
+        {"Metric": "Expenses (Current Period)", "Amount": expenses},
     ]
     return summary_data
 
@@ -103,7 +104,7 @@ def calculate_investment_allocation(
             {
                 "Category": name,
                 "Amount": amount,
-                "%": (amount / total_investment) if total_investment else 0,
+                "% Allocation": (amount / total_investment) if total_investment else 0,
             }
         )
 

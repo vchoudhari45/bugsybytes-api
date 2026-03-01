@@ -1,5 +1,14 @@
 import subprocess
 
+import yaml
+
+from src.data.config import DASHBOARD_CONFIG_PATH
+
+with open(DASHBOARD_CONFIG_PATH, "r") as f:
+    dashboard_config = yaml.safe_load(f)
+
+filter_not_commodities = dashboard_config["dashboard"]["commodities"]["filter_not"]
+
 
 def get_ledger_cli_output_by_config(
     config, ledger_files, commodity=None, command_type="balance"
@@ -67,12 +76,13 @@ def run_ledger_cli_command(cmd):
 
 def parse_ledger_cli_commodities_output(output):
     parsed_lines = []
+    excluded_items = set(filter_not_commodities or [])
     for line in output.splitlines():
         line = line.strip().replace('"', "")
         if not line:
             continue
         # Exclude INR and USD
-        if line not in {"INR", "USD"}:
+        if line not in {"INR", "USD"} and line not in excluded_items:
             parsed_lines.append(line)
     return parsed_lines
 

@@ -1,6 +1,6 @@
 import concurrent.futures
 import sys
-from datetime import date, datetime
+from datetime import datetime
 from functools import partial
 
 import requests
@@ -149,7 +149,6 @@ def compute_for_commodity(
     realized_pl = 0.0
     dividend = 0.0
     first_investment_date = datetime.max.date()
-    current_capital_first_investment_date = datetime.max.date()
     cashflow_dates = []
     cashflows = []
     for entry in combined_flow:
@@ -175,34 +174,33 @@ def compute_for_commodity(
             cashflows.append(amount)
             current_invested += amount
             current_quantity += quantity
-            if current_quantity == 0:
-                current_capital_first_investment_date = date_obj
-
-    # handling for float issue
-    if current_quantity <= 0.1 and current_invested <= 0.1:
-        return None
-
-    if current_capital_first_investment_date == datetime.max.date():
-        current_capital_first_investment_date = first_investment_date
 
     current_invested = abs(current_invested)
     current_market_value = float(balance[0]["amount"]) if balance else 0.0
 
     average_cost = (
-        round(current_invested / current_quantity, 2) if current_quantity else 0.0
+        round(current_invested / current_quantity, 2) if current_invested > 1 else 0.0
     )
     unrealized_pl = round(current_market_value - current_invested, 2)
     total_pl = realized_pl + unrealized_pl
 
     current_absolute_return = (
-        unrealized_pl / current_invested if current_invested != 0 else 0.0
+        unrealized_pl / current_invested if current_invested > 1 else 0.0
     )
 
-    current_holding_days = (date.today() - current_capital_first_investment_date).days
-    current_cagr = (1 + current_absolute_return) ** (365 / current_holding_days) - 1
+    current_holding_days = (
+        (today - first_investment_date).days
+        if first_investment_date != datetime.max.date()
+        else 0
+    )
+    if current_holding_days > 0 and abs(current_absolute_return) > 0:
+        current_cagr = (1 + current_absolute_return) ** (365 / current_holding_days) - 1
+    else:
+        current_cagr = 0.0
 
-    cashflow_dates.append(date.today())
-    cashflows.append(current_market_value)
+    if abs(current_market_value) > 0.1:
+        cashflow_dates.append(today)
+        cashflows.append(current_market_value)
 
     xirr_value = xirr(dates=cashflow_dates, cashflows=cashflows)
 
@@ -216,6 +214,7 @@ def compute_for_commodity(
 
     # adding display name for mutual fund
     google_finance_code = ""
+    fl_number = ""
     if is_mf:
         fund = find_fund_by_isin(mutual_funds, account_name, commodity)
         fl_number = fund.get("fl_number", "") if fund else ""
