@@ -44,6 +44,7 @@ def get_ledger_cli_output_by_config(
         account_set = set(accounts)
 
         filter_not_account = config.get("filter_not", [])
+        us_accounts = config.get("us_account", [])
 
         leaf_accounts = []
         for p in all_accounts:
@@ -53,6 +54,23 @@ def get_ledger_cli_output_by_config(
                 and p["account"] not in filter_not_account
             ):
                 leaf_accounts.append(p)
+
+        if us_accounts:
+            cmd_no_basis = [c for c in cmd if c != "--basis"]
+
+            output_no_basis = run_ledger_cli_command(cmd_no_basis)
+            all_accounts_no_basis = parse_ledger_cli_balance_output(output_no_basis)
+
+            # build lookup map
+            no_basis_map = {
+                acc["account"]: acc["amount"] for acc in all_accounts_no_basis
+            }
+
+            # override matching accounts
+            for account in leaf_accounts:
+                if account["account"] in us_accounts:
+                    if account["account"] in no_basis_map:
+                        account["amount"] = no_basis_map[account["account"]]
 
         return leaf_accounts
 
