@@ -143,7 +143,11 @@ def print_table(
     link_fields_upper = {field.upper() for field in link_fields}
 
     # Extract headers
-    headers = list(data[0].keys())
+    headers = []
+    for entry in data:
+        for key in entry.keys():
+            if key not in headers:
+                headers.append(key)
 
     row = start_row
 
@@ -157,6 +161,11 @@ def print_table(
         for col, header in enumerate(headers):
             value = entry.get(header, "")
             header_upper = header.upper()
+
+            # Handle None values safely
+            if value is None:
+                worksheet.write(row, start_col + col, "", layout["account_fmt"])
+                continue
 
             # Link fields
             if header_upper in link_fields_upper:
