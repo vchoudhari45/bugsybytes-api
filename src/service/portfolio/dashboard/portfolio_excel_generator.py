@@ -370,10 +370,11 @@ if __name__ == "__main__":
     for report in individual_xirr_reports_data:
         report_name = report["name"]
         report_data = report["data"]
+        report_type = report["type"]
+
         if not report_data:
             continue
         ws_xirr = workbook.add_worksheet(report_name)
-        ws_xirr.freeze_panes(7, 1)
 
         # KPI Calculations
         total_invested = round(sum(row.get("INVESTED", 0) for row in report_data), 2)
@@ -418,14 +419,26 @@ if __name__ == "__main__":
             {"KPI": "ABSOLUTE RETURN", "VALUE": portfolio_absolute_return * 100},
             {"KPI": "CAGR", "VALUE": portfolio_cagr * 100},
         ]
-        kpi_end_row = print_kpi_cards(
-            worksheet=ws_xirr,
-            layout=layout,
-            kpi_list=kpi_list,
-            start_row=0,
-            start_col=0,
-            cards_per_row=3,
-        )
+        if report_type == "Equity":
+            kpi_end_row = print_kpi_cards(
+                worksheet=ws_xirr,
+                layout=layout,
+                kpi_list=kpi_list,
+                start_row=0,
+                start_col=1,
+                cards_per_row=4,
+            )
+            ws_xirr.freeze_panes(7, 1)
+        else:
+            kpi_end_row = print_kpi_cards(
+                worksheet=ws_xirr,
+                layout=layout,
+                kpi_list=kpi_list,
+                start_row=0,
+                start_col=1,
+                cards_per_row=3,
+            )
+            ws_xirr.freeze_panes(10, 1)
 
         print_table(
             worksheet=ws_xirr,
@@ -515,7 +528,7 @@ if __name__ == "__main__":
         layout=layout,
         kpi_list=kpi_list,
         start_row=0,
-        start_col=0,
+        start_col=1,
         cards_per_row=3,
     )
     print_table(

@@ -291,6 +291,7 @@ def calculate_individual_xirr_report_data(
             {
                 "name": report["name"],
                 "data": data,
+                "type": report["type"],
             }
         )
     return individual_xirr_reports_data
