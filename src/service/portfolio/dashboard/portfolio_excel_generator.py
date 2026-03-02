@@ -435,10 +435,10 @@ if __name__ == "__main__":
                 layout=layout,
                 kpi_list=kpi_list,
                 start_row=0,
-                start_col=1,
+                start_col=2,
                 cards_per_row=3,
             )
-            ws_xirr.freeze_panes(10, 1)
+            ws_xirr.freeze_panes(10, 2)
 
         print_table(
             worksheet=ws_xirr,

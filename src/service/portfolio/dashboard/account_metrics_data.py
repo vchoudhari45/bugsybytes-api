@@ -237,6 +237,7 @@ def compute_for_commodity(
         f"CURRENT CAGR: {current_cagr * 100}",
         f"XIRR: {xirr_value * 100}",
         f"CURRENT HOLDING DAYS: {current_holding_days}",
+        f"METRICS: {metrics}",
         sep="\n",
     )
 
