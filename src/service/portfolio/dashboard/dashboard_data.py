@@ -1,5 +1,6 @@
 import sys
 
+from src.data.config import RED_BOLD, RESET
 from src.service.portfolio.ledger.ledger_cli_output_parser import (
     get_ledger_cli_output_by_config,
 )
@@ -165,6 +166,10 @@ def calculate_investment_allocation(
                 break
 
         if not matched:
+            print(
+                f"{RED_BOLD}WARNING: Unmatched account -> "
+                f"Account: {account}, Amount: {amount}{RESET}"
+            )
             allocation_totals["Other"] += amount
 
         total_investment += amount

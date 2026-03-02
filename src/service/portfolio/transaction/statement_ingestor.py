@@ -622,7 +622,7 @@ def ingest_statements(statement_type, filename, who, print_after_date):
 
 if __name__ == "__main__":
     # date(YYYY, MM, DD)
-    d = date(2026, 2, 15)
+    d = date(2026, 2, 20)
     # ingest me
     ingest_statements(statement_type="is", filename="is", who="me", print_after_date=d)
     ingest_statements(statement_type="hs", filename="hs", who="me", print_after_date=d)
