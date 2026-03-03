@@ -5,6 +5,7 @@ from functools import partial
 
 import requests
 
+from src.service.portfolio.dashboard.nifty_index_data import fetch_nse_stocks
 from src.service.portfolio.ledger.ledger_cli_output_parser import (
     get_ledger_cli_output_by_config,
 )
@@ -12,6 +13,7 @@ from src.service.util.date_util import parse_indian_date_format
 from src.service.util.xirr_calculator import xirr
 
 _AMFI_CACHE = None
+_NIFTY_INDEX_CACHE = fetch_nse_stocks()
 
 
 def fetch_amfi_isin_scheme_map(session):
@@ -275,7 +277,19 @@ def compute_for_commodity(
     for key, value in metrics.items():
         output[key] = value
 
-    # 7. News link
+    # 7. Adding Nifty Index
+    if not is_mf:
+        index_data = _NIFTY_INDEX_CACHE.get(commodity, {}) if not is_mf else {}
+        output["NIFTY INDEX"] = index_data.get("NIFTY INDEX", "")
+        output["30D %"] = index_data.get("30D %", 0.0)
+        output["365D %"] = index_data.get("365D %", 0.0)
+        output["NEAR 52W HIGH %"] = index_data.get("NEAR 52W HIGH %", 0.0)
+        output["NEAR 52W LOW %"] = index_data.get("NEAR 52W LOW %", 0.0)
+        output["FREE FLOATING MARKET CAP"] = index_data.get(
+            "FREE FLOATING MARKET CAP", 0.0
+        )
+
+    # 8. News link
     output["NEWS LINK"] = get_google_finance_link(is_mf, google_finance_code, commodity)
 
     return output

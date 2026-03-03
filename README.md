@@ -62,6 +62,9 @@ python -m src.service.portfolio.ledger.ledger_entry_generator
 
 # Portfolio Dashboard Generator 
 python -m src.service.portfolio.dashboard.portfolio_excel_generator
+
+# Nifty Index 
+python -m src.service.portfolio.dashboard.nifty_index_data
 ```
 
 Run tox to lint code, execute pytest tests, and generate/validate tests with schemathesis

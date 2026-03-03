@@ -123,12 +123,11 @@ def calculate_summary_data(
         bond_pct = 0
 
     summary_data = [
-        {"Metric": "Net Worth", "Amount": assets - liabilities},
         {"Metric": "Assets", "Amount": assets},
         {"Metric": "Liabilities", "Amount": liabilities},
         {"Metric": "Liquid Cash", "Amount": liquid_cash},
         {"Metric": "Income (Current Period)", "Amount": abs(income)},
-        {"Metric": "Expenses (Current Period)", "Amount": expenses},
+        {"Metric": "Expenses (Current Period)", "Amount": abs(expenses)},
         {"Metric": "Stock", "Amount": round(stock_total, 2)},
         {"Metric": "Bond", "Amount": round(bond_total, 2)},
         {

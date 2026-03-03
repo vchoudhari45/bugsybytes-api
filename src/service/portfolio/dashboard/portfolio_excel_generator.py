@@ -73,6 +73,10 @@ percent_fields = [
     "INFLATION (%)",
     "RATE OF INTEREST (%)",
     "TAX (%)",
+    "30D %",
+    "365D %",
+    "NEAR 52W HIGH %",
+    "NEAR 52W LOW %",
 ]
 
 link_fields = ["NEWS LINK"]
@@ -84,8 +88,8 @@ def print_kpi_cards(
     amount_fields_upper = {f.upper() for f in amount_fields}
     percent_fields_upper = {f.upper() for f in percent_fields}
 
-    CARD_COLS = 2
-    CARD_ROWS = 3
+    CARD_COLS = 1
+    CARD_ROWS = 2
     col_gap = 1
 
     row = start_row
@@ -434,10 +438,10 @@ if __name__ == "__main__":
                 layout=layout,
                 kpi_list=kpi_list,
                 start_row=0,
-                start_col=1,
+                start_col=2,
                 cards_per_row=4,
             )
-            ws_xirr.freeze_panes(7, 1)
+            ws_xirr.freeze_panes(8, 1)
         else:
             kpi_end_row = print_kpi_cards(
                 worksheet=ws_xirr,
@@ -447,7 +451,7 @@ if __name__ == "__main__":
                 start_col=2,
                 cards_per_row=3,
             )
-            ws_xirr.freeze_panes(10, 2)
+            ws_xirr.freeze_panes(11, 2)
 
         print_table(
             worksheet=ws_xirr,
