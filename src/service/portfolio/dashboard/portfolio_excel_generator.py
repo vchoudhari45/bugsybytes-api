@@ -405,7 +405,6 @@ if __name__ == "__main__":
         max_holding_days = round(
             max(row.get("HOLDING DAYS", 0) for row in report_data), 2
         )
-
         # Absolute Return (Portfolio Level)
         if total_invested > 0:
             portfolio_absolute_return = (
@@ -413,7 +412,6 @@ if __name__ == "__main__":
             ) / total_invested
         else:
             portfolio_absolute_return = 0.0
-
         # Portfolio CAGR
         if total_invested > 0 and max_holding_days > 0:
             portfolio_cagr = (total_market_value / total_invested) ** (
@@ -421,6 +419,33 @@ if __name__ == "__main__":
             ) - 1
         else:
             portfolio_cagr = 0.0
+
+        # Index Allocation
+        index_investment = {}
+        for row in report_data:
+            index_name = row.get("NIFTY INDEX")
+            invested = row.get("INVESTED", 0)
+
+            # Ignore if index missing or invested zero
+            if not index_name or invested <= 0:
+                continue
+
+            index_investment[index_name] = (
+                index_investment.get(index_name, 0) + invested
+            )
+
+        index_allocation_kpis = []
+        for index_name, invested_amount in index_investment.items():
+            if total_invested > 0:
+                allocation_percent = round((invested_amount / total_invested) * 100, 2)
+            else:
+                allocation_percent = 0.0
+            index_allocation_kpis.append(
+                {
+                    "KPI": f"{index_name} ALLOCATION %",
+                    "VALUE": allocation_percent,
+                }
+            )
 
         kpi_list = [
             {"KPI": "INVESTED", "VALUE": total_invested},
@@ -432,7 +457,10 @@ if __name__ == "__main__":
             {"KPI": "ABSOLUTE RETURN", "VALUE": portfolio_absolute_return * 100},
             {"KPI": "CAGR", "VALUE": portfolio_cagr * 100},
         ]
+
         if report_type == "Equity":
+            # Add index allocation KPI for equity
+            kpi_list.extend(index_allocation_kpis)
             kpi_end_row = print_kpi_cards(
                 worksheet=ws_xirr,
                 layout=layout,
@@ -441,7 +469,7 @@ if __name__ == "__main__":
                 start_col=2,
                 cards_per_row=4,
             )
-            ws_xirr.freeze_panes(8, 1)
+            ws_xirr.freeze_panes(8, 2)
         else:
             kpi_end_row = print_kpi_cards(
                 worksheet=ws_xirr,

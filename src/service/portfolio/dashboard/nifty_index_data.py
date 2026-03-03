@@ -59,6 +59,7 @@ def fetch_nse_stocks():
                 if symbol and symbol not in all_stocks:  # ← Priority logic
                     all_stocks[symbol] = {
                         "NIFTY INDEX": index_name,
+                        "COMPANY NAME": round(stock.get("companyName", 0), 2),
                         "30D %": round(stock.get("perChange30d", 0), 2),
                         "365D %": round(stock.get("perChange365d", 0), 2),
                         "NEAR 52W HIGH %": round(stock.get("nearWKH", 0), 2),

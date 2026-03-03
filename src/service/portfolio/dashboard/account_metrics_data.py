@@ -214,6 +214,9 @@ def compute_for_commodity(
         company_id = get_company_id(display_name, session)
         metrics = get_metrics(company_id, session)
 
+    # Get Nifty Index Data
+    index_data = _NIFTY_INDEX_CACHE.get(commodity, {}) if not is_mf else {}
+
     # adding display name for mutual fund
     google_finance_code = ""
     fl_number = ""
@@ -253,6 +256,8 @@ def compute_for_commodity(
         output["NAME"] = display_name
         if fl_number is not None and str(fl_number).strip():
             output["FL NUMBER"] = fl_number
+    else:
+        output["NAME"] = index_data.get("COMPANY NAME", "")
 
     # 3. Core fields
     output["INVESTED"] = current_invested
@@ -279,7 +284,6 @@ def compute_for_commodity(
 
     # 7. Adding Nifty Index
     if not is_mf:
-        index_data = _NIFTY_INDEX_CACHE.get(commodity, {}) if not is_mf else {}
         output["NIFTY INDEX"] = index_data.get("NIFTY INDEX", "")
         output["30D %"] = index_data.get("30D %", 0.0)
         output["365D %"] = index_data.get("365D %", 0.0)
