@@ -100,11 +100,21 @@ def compute_for_commodity(commodity, report, ledger_files, account_name):
     return xirr_data, cashflow_dates_and_quantity
 
 
+def calculate_gsec_kpi(xirr_data, portfolio_xirr_value):
+    total_invested = round(sum(row.get("INVESTMENT AMOUNT", 0) for row in xirr_data), 2)
+    number_of_gsecs = round(len(xirr_data), 2)
+    kpi_list = [
+        {"KPI": "INVESTED", "VALUE": total_invested},
+        {"KPI": "NUMBER OF G-SECS", "VALUE": number_of_gsecs},
+        {"KPI": "PORTFOLIO XIRR", "VALUE": portfolio_xirr_value},
+    ]
+    return kpi_list
+
+
 def calculate_gsec_individual_xirr_report_data(
     ledger_files, gsec_individual_xirr_reports_config
 ):
     gsec_individual_xirr_reports_data = []
-
     for report in gsec_individual_xirr_reports_config:
         results = generate_gsec_portfolio_df(ledger_files, report)
 
@@ -162,7 +172,9 @@ def calculate_gsec_individual_xirr_report_data(
                 "name": report["name"],
                 "xirr_data": xirr_rows,
                 "cashflow_data": cashflow_rows,
-                "portfolio_xirr": portfolio_xirr_value,
+                "kpi_list": calculate_gsec_kpi(
+                    xirr_rows, round(portfolio_xirr_value, 2)
+                ),
             }
         )
 

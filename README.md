@@ -4,13 +4,6 @@ BugsyBytes is a minimal blogging platform that uses MDX files for posts, along w
 
 ## Copy Files From
 [NSE Bonds](https://www.nseindia.com/market-data/bonds-traded-in-capital-market)<br />
-[Nifty 50 Index Weightage](https://www.nseindia.com/market-data/pre-open-market-cm-and-emerge-market)
-
-## Important Links
-[NSE Index Reconstitution Calendar](https://www.niftyindices.com/resources/index-rebalancing-schedule)<br />
-[Nifty 50 Index Factsheet](https://niftyindices.com/reports/index-factsheet)<br />
-[Nifty 50 Index Weightage from TickerTape](https://www.tickertape.in/indices/nifty-50-index-.NSEI)<br />
-[Nifty 50 PE Scanner](https://www.screener.in/company/NIFTY/)
 
 ## Running FastAPI Backend
 

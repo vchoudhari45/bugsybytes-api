@@ -48,6 +48,7 @@ def fetch_nse_stocks():
         print(f"Warning: Could not load main page: {e}")
 
     all_stocks = {}
+    index_ffmc_totals = {}
 
     for index_name, index_param in indices.items():
         url = f"{base_url}{api_endpoint}?index={index_param}"
@@ -56,17 +57,40 @@ def fetch_nse_stocks():
             data = response.json()
             for stock in data.get("data", []):
                 symbol = stock.get("symbol")
-                if symbol and symbol not in all_stocks:  # ← Priority logic
+
+                ffmc = round(stock.get("ffmc", 0) or 0, 2)
+
+                if symbol and symbol not in all_stocks:  # Priority logic
                     all_stocks[symbol] = {
                         "NIFTY INDEX": index_name,
-                        "COMPANY NAME": round(stock.get("companyName", 0), 2),
+                        "COMPANY NAME": stock.get("meta", {}).get("companyName", ""),
                         "30D %": round(stock.get("perChange30d", 0), 2),
                         "365D %": round(stock.get("perChange365d", 0), 2),
                         "NEAR 52W HIGH %": round(stock.get("nearWKH", 0), 2),
                         "NEAR 52W LOW %": round(stock.get("nearWKL", 0), 2),
                         "FREE FLOATING MARKET CAP": round(stock.get("ffmc", 0), 2),
+                        "PREV CLOSE": round(stock.get("previousClose", 0), 2),
+                        "YEAR LOW": round(stock.get("yearLow", 0), 2),
+                        "YEAR HIGH": round(stock.get("yearHigh", 0), 2),
                     }
+                    index_ffmc_totals[index_name] = (
+                        index_ffmc_totals.get(index_name, 0) + ffmc
+                    )
         except Exception as e:
             print(f"Failed to fetch {index_name}: {e}")
 
+        for symbol, stock_data in all_stocks.items():
+            index_name = stock_data["NIFTY INDEX"]
+            ffmc = stock_data["FREE FLOATING MARKET CAP"]
+            total_ffmc = index_ffmc_totals.get(index_name, 0)
+            if total_ffmc > 0:
+                stock_data["TARGET INDEX WEIGHTAGE"] = round(ffmc / total_ffmc, 6)
+            else:
+                stock_data["TARGET INDEX WEIGHTAGE"] = 0.0
+
     return all_stocks
+
+
+# if __name__ == "__main__":
+#     all_stocks = fetch_nse_stocks()
+#     print(all_stocks)

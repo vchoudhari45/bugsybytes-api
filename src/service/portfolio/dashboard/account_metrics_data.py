@@ -292,11 +292,89 @@ def compute_for_commodity(
         output["FREE FLOATING MARKET CAP"] = index_data.get(
             "FREE FLOATING MARKET CAP", 0.0
         )
+        output["PREV CLOSE"] = index_data.get("PREV CLOSE", 0.0)
+        output["YEAR LOW"] = index_data.get("YEAR LOW", 0.0)
+        output["YEAR HIGH"] = index_data.get("YEAR HIGH", 0.0)
+        output["TARGET INDEX WEIGHTAGE"] = index_data.get("TARGET INDEX WEIGHTAGE", 0.0)
 
     # 8. News link
     output["NEWS LINK"] = get_google_finance_link(is_mf, google_finance_code, commodity)
 
     return output
+
+
+def calculate_account_metrics_kpi(report_data, report_type):
+    total_invested = round(sum(row.get("INVESTED", 0) for row in report_data), 2)
+    total_market_value = round(
+        sum(row.get("MARKET VALUE", 0) for row in report_data), 2
+    )
+    total_realized = round(sum(row.get("REALIZED P&L", 0) for row in report_data), 2)
+    total_unrealized = round(
+        sum(row.get("UNREALIZED P&L", 0) for row in report_data), 2
+    )
+    total_pl = round(sum(row.get("TOTAL P&L", 0) for row in report_data), 2)
+    total_dividend = round(sum(row.get("DIVIDEND", 0) for row in report_data), 2)
+    max_holding_days = round(max(row.get("HOLDING DAYS", 0) for row in report_data), 2)
+
+    portfolio_absolute_return = 0.0
+    if total_invested > 0:
+        portfolio_absolute_return = (
+            total_market_value - total_invested
+        ) / total_invested
+
+    portfolio_cagr = 0.0
+    if total_invested > 0 and max_holding_days > 0:
+        portfolio_cagr = (total_market_value / total_invested) ** (
+            365 / max_holding_days
+        ) - 1
+
+    kpi_list = [
+        {"KPI": "INVESTED", "VALUE": total_invested},
+        {"KPI": "MARKET VALUE", "VALUE": total_market_value},
+        {"KPI": "REALIZED P&L", "VALUE": total_realized},
+        {"KPI": "UNREALIZED P&L", "VALUE": total_unrealized},
+        {"KPI": "TOTAL P&L", "VALUE": total_pl},
+        {"KPI": "DIVIDEND", "VALUE": total_dividend},
+        {"KPI": "ABSOLUTE RETURN", "VALUE": portfolio_absolute_return * 100},
+        {"KPI": "CAGR", "VALUE": portfolio_cagr * 100},
+    ]
+
+    # if it is equity report add nifty index % allocation
+    if report_type == "Equity":
+        index_investment = {}
+        for row in report_data:
+            # calculate buy and sell quantity based on index weightage
+            current_value = row.get("MARKET VALUE", 0)
+            price = row.get("PREV CLOSE", 0)
+            benchmark_weight = row.get("TARGET INDEX WEIGHTAGE", 0)
+            if total_market_value > 0:
+                row["PORTFOLIO WEIGHT"] = round(current_value / total_market_value, 6)
+            else:
+                row["PORTFOLIO WEIGHT"] = 0.0
+            target_value = total_market_value * benchmark_weight
+            difference = target_value - current_value
+            rebalance_qty = 0.0
+            if price > 0:
+                rebalance_qty = difference / price
+            row["BUY/SELL"] = rebalance_qty
+
+        # assign index allocation KPIs
+        index_allocation_kpis = []
+        index_name = row.get("NIFTY INDEX")
+        for index_name, invested_amount in index_investment.items():
+            if total_invested > 0:
+                allocation_percent = round((invested_amount / total_invested) * 100, 2)
+            else:
+                allocation_percent = 0.0
+            index_allocation_kpis.append(
+                {
+                    "KPI": f"{index_name} ALLOCATION %",
+                    "VALUE": allocation_percent,
+                }
+            )
+        kpi_list.extend(index_allocation_kpis)
+
+    return kpi_list
 
 
 def calculate_individual_xirr_report_data(
@@ -306,11 +384,13 @@ def calculate_individual_xirr_report_data(
     for report in individual_xirr_reports_config:
         data = get_account_performance_metrics_data(report, ledger_files, mutual_funds)
         data.sort(key=lambda x: x.get("XIRR", 0), reverse=False)
+        kpi_list = calculate_account_metrics_kpi(data, report["type"])
         individual_xirr_reports_data.append(
             {
                 "name": report["name"],
-                "data": data,
                 "type": report["type"],
+                "data": data,
+                "kpi_list": kpi_list,
             }
         )
     return individual_xirr_reports_data
