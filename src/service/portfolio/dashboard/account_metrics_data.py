@@ -225,10 +225,11 @@ def compute_for_commodity(
         fl_number = fund.get("fl_number", "") if fund else ""
         google_finance_code = fund.get("google_finance_code", "") if fund else ""
 
+    cashflow_date_strings = [d.strftime("%Y-%m-%d") for d in cashflow_dates]
     print(
         f"\nSYMBOL: {commodity}",
         f"DISPLAY NAME: {display_name}",
-        f"CASHFLOW DATES: {[d.strftime('%Y-%m-%d') for d in cashflow_dates]}",
+        f"CASHFLOW DATES: {cashflow_date_strings}",
         f"CASHFLOW: {cashflows}",
         f"CURRENT INVESTED: {current_invested}",
         f"CURRENT QUANTITY: {current_quantity}",
@@ -377,8 +378,8 @@ def calculate_account_metrics_kpi(report_data, report_type):
                 allocation_percent = 0.0
             index_allocation_kpis.append(
                 {
-                    "KPI": f"{index_name} ALLOCATION %",
-                    "VALUE": f"{round(invested_amount,2 )}|{allocation_percent}",
+                    "KPI": f"{index_name} ALLOCATION",
+                    "VALUE": f"{round(invested_amount, 2)}|{allocation_percent}",
                 }
             )
         kpi_list.extend(index_allocation_kpis)
