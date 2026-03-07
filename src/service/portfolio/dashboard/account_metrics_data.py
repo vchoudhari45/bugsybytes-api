@@ -347,20 +347,29 @@ def calculate_account_metrics_kpi(report_data, report_type):
             current_value = row.get("MARKET VALUE", 0)
             price = row.get("PREV CLOSE", 0)
             benchmark_weight = row.get("TARGET INDEX WEIGHTAGE", 0)
+
+            index_name = row.get("NIFTY INDEX")
+            if index_name:
+                index_investment[index_name] = (
+                    index_investment.get(index_name, 0) + current_value
+                )
+
             if total_market_value > 0:
                 row["PORTFOLIO WEIGHT"] = round(current_value / total_market_value, 6)
             else:
                 row["PORTFOLIO WEIGHT"] = 0.0
+
             target_value = total_market_value * benchmark_weight
             difference = target_value - current_value
+
             rebalance_qty = 0.0
             if price > 0:
                 rebalance_qty = difference / price
+
             row["BUY/SELL"] = rebalance_qty
 
         # assign index allocation KPIs
         index_allocation_kpis = []
-        index_name = row.get("NIFTY INDEX")
         for index_name, invested_amount in index_investment.items():
             if total_invested > 0:
                 allocation_percent = round((invested_amount / total_invested) * 100, 2)
@@ -369,7 +378,7 @@ def calculate_account_metrics_kpi(report_data, report_type):
             index_allocation_kpis.append(
                 {
                     "KPI": f"{index_name} ALLOCATION %",
-                    "VALUE": allocation_percent,
+                    "VALUE": f"{round(invested_amount,2 )}|{allocation_percent}",
                 }
             )
         kpi_list.extend(index_allocation_kpis)
