@@ -274,6 +274,7 @@ if __name__ == "__main__":
         mutual_funds=mutual_funds,
         ledger_files=ledger_files,
         stock_vs_bond_config=dashboard_config["dashboard"]["stock_vs_bond"],
+        categories_threshold=dashboard_config["dashboard"]["categories_threshold"],
     )
 
     # Allocation Data
