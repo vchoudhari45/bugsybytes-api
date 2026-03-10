@@ -89,8 +89,3 @@ def fetch_nse_stocks():
                 stock_data["TARGET INDEX WEIGHTAGE"] = 0.0
 
     return all_stocks
-
-
-# if __name__ == "__main__":
-#     all_stocks = fetch_nse_stocks()
-#     print(all_stocks)

@@ -41,9 +41,6 @@ uvicorn src.main:app --reload
 # export UPSTOX_ACCESS_TOKEN
 python -m src.service.gsec_tracker --target_xirr=0.0801
 
-# Nifty 50 Trackers
-python -m src.service.nifty50.portfolio_tracker
-
 # Price DB Writer
 python -m src.service.portfolio.ledger.price_db_writer
 
@@ -55,9 +52,6 @@ python -m src.service.portfolio.ledger.ledger_entry_generator
 
 # Portfolio Dashboard Generator 
 python -m src.service.portfolio.dashboard.portfolio_excel_generator
-
-# Nifty Index 
-python -m src.service.portfolio.dashboard.nifty_index_data
 ```
 
 Run tox to lint code, execute pytest tests, and generate/validate tests with schemathesis
