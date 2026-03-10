@@ -125,8 +125,8 @@ def calculate_summary_data(
 
     suggested_equity = 0
     suggested_bond = 0
-    cash_threshold = categories_threshold.get("Liquid Cash", 0)
-    target_stock = categories_threshold.get("Target Stock", 0)
+    cash_threshold = categories_threshold.get("liquid_cash", 0)
+    target_stock = categories_threshold.get("target_stock", 0)
 
     if liquid_cash > cash_threshold:
         excess_cash = liquid_cash - cash_threshold
@@ -134,38 +134,9 @@ def calculate_summary_data(
 
         current_total = stock_total + bond_total
         if current_total + investment > 0:
-            # Calculate how much stock we SHOULD have
-            # after investing this new money.
-            #
-            # Formula:
-            # target_stock_value =
-            #     target_stock % * (current portfolio + new investment)
-            #
-            # Example:
-            # target_stock = 30%
-            # current_total = 10L
-            # investment = 8L
-            # target_stock_value = 0.30 * 18L = 5.4L
             target_stock_value = target_stock * (current_total + investment)
-
-            # How much additional stock is required
-            # to reach the target allocation
-            # current stock = 8L
-            # target stock = 5.4L
-            # difference = -2.6L (stocks already overweight)
-
             suggested_equity = max(0, target_stock_value - stock_total)
-
-            # Prevent investing more in stocks than available cash
-            # If calculation suggested 10L stock purchase
-            # but we only have 8L investment cash
-            # we cap it at 8L.
             suggested_equity = min(suggested_equity, investment)
-
-            # Remaining investment goes to bonds
-            # investment = 8L
-            # equity purchase = 0
-            # bond purchase = 8L
             suggested_bond = investment - suggested_equity
 
     summary_data = [

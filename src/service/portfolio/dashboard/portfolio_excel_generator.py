@@ -228,6 +228,7 @@ if __name__ == "__main__":
     ]
     retirement_tracker_config = dashboard_config["dashboard"]["retirement_tracker"]
     mutual_funds = dashboard_config["dashboard"]["mutual_funds"]
+    nifty_index_threshold = dashboard_config["dashboard"]["nifty_index"]["threshold"]
     ledger_files = {LEDGER_ME_MAIN, LEDGER_MOM_MAIN, LEDGER_PAPA_MAIN}
 
     # Balance Sheet data
@@ -293,8 +294,17 @@ if __name__ == "__main__":
     retirement_tracking_data = calculate_retirement_data(retirement_tracker_config)
 
     # Individual XIRR Report Data
+    recommended_stock = next(
+        item["Amount"]
+        for item in summary_data
+        if item["Metric"] == "Recommended Stock Purchase"
+    )
     individual_xirr_reports_data = calculate_individual_xirr_report_data(
-        ledger_files, individual_xirr_reports_config, mutual_funds
+        ledger_files,
+        individual_xirr_reports_config,
+        mutual_funds,
+        recommended_stock,
+        nifty_index_threshold,
     )
 
     # GSec Individual XIRR Report Data

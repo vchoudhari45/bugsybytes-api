@@ -304,7 +304,9 @@ def compute_for_commodity(
     return output
 
 
-def calculate_account_metrics_kpi(report_data, report_type):
+def calculate_account_metrics_kpi(
+    report_data, report_type, report_name, recommended_stock, nifty_index_threshold
+):
     total_invested = round(sum(row.get("INVESTED", 0) for row in report_data), 2)
     total_market_value = round(
         sum(row.get("MARKET VALUE", 0) for row in report_data), 2
@@ -336,8 +338,8 @@ def calculate_account_metrics_kpi(report_data, report_type):
         {"KPI": "UNREALIZED P&L", "VALUE": total_unrealized},
         {"KPI": "TOTAL P&L", "VALUE": total_pl},
         {"KPI": "DIVIDEND", "VALUE": total_dividend},
-        {"KPI": "ABSOLUTE RETURN", "VALUE": portfolio_absolute_return * 100},
-        {"KPI": "CAGR", "VALUE": portfolio_cagr * 100},
+        {"KPI": "ABSOLUTE RETURN", "VALUE": round(portfolio_absolute_return * 100, 2)},
+        {"KPI": "CAGR", "VALUE": round(portfolio_cagr * 100, 2)},
     ]
 
     # if it is equity report add nifty index % allocation
@@ -384,17 +386,43 @@ def calculate_account_metrics_kpi(report_data, report_type):
             )
         kpi_list.extend(index_allocation_kpis)
 
+        if report_name == "Consolidated Equity" and recommended_stock > 0:
+            current_total = total_market_value
+            new_total = current_total + recommended_stock
+            recommendation_kpis = []
+            for index_name, target_weight in nifty_index_threshold.items():
+                current_value = index_investment.get(index_name, 0)
+                target_value = new_total * target_weight
+                additional_investment = max(0, target_value - current_value)
+                recommendation_kpis.append(
+                    {
+                        "KPI": f"RECOMMENDED {index_name} PURCHASE",
+                        "VALUE": round(additional_investment, 2),
+                    }
+                )
+            kpi_list.extend(recommendation_kpis)
+
     return kpi_list
 
 
 def calculate_individual_xirr_report_data(
-    ledger_files, individual_xirr_reports_config, mutual_funds
+    ledger_files,
+    individual_xirr_reports_config,
+    mutual_funds,
+    recommended_stock,
+    nifty_index_threshold,
 ):
     individual_xirr_reports_data = []
     for report in individual_xirr_reports_config:
         data = get_account_performance_metrics_data(report, ledger_files, mutual_funds)
         data.sort(key=lambda x: x.get("XIRR", 0), reverse=False)
-        kpi_list = calculate_account_metrics_kpi(data, report["type"])
+        kpi_list = calculate_account_metrics_kpi(
+            data,
+            report["type"],
+            report["name"],
+            recommended_stock,
+            nifty_index_threshold,
+        )
         individual_xirr_reports_data.append(
             {
                 "name": report["name"],
