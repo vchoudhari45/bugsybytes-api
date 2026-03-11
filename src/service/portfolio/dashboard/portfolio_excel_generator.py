@@ -415,7 +415,7 @@ if __name__ == "__main__":
                 start_col=2,
                 cards_per_row=3,
             )
-            ws_xirr.freeze_panes(11, 2)
+            ws_xirr.freeze_panes(13, 2)
 
         print_table(
             worksheet=ws_xirr,

@@ -37,8 +37,20 @@ def calculate_category_tables_data(
         if not data:
             continue
 
+        total_amount = sum(e["amount"] for e in data)
         sorted_data = sorted(
-            [{"Account": e["account"], "Amount": e["amount"]} for e in data],
+            [
+                {
+                    "Account": e["account"],
+                    "Amount": e["amount"],
+                    "Percent": (
+                        round((e["amount"] / total_amount) * 100, 2)
+                        if total_amount > 0
+                        else 0
+                    ),
+                }
+                for e in data
+            ],
             key=lambda x: x["Amount"],
             reverse=True,
         )
