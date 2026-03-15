@@ -523,8 +523,8 @@ def ingest_is_statements(statement_type, filename, who):
             reader = normalized_dict_reader(non_comment_lines(f), delimiter="\t")
 
             for row in reader:
-                deposit = float(row.get("Deposit Amount (INR )"))
-                withdrawal = float(row.get("Withdrawal Amount (INR )"))
+                deposit = float(row.get("Deposit Amount(INR)"))
+                withdrawal = float(row.get("Withdrawal Amount(INR)"))
 
                 net_amount = deposit - withdrawal
                 abs_amount = abs(net_amount)
