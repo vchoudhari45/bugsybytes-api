@@ -1,3 +1,3 @@
 src/data/** filter=git-crypt diff=git-crypt
-tests/data/** filter=git-crypt diff=git-crypt
+test/data/** filter=git-crypt diff=git-crypt
 src/data/config.py !filter !diff
