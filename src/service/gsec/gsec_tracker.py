@@ -163,27 +163,21 @@ def enrich_gsec_market_feed(message, nse_gsec_df, target_xirr=DEFAULT_TARGET_XIR
 
 
 # Streaming Entrypoint
-nse_gsec_df = process_nse_gsec_csv(NSE_GSEC_LIVE_DATA_DIR, GSEC_DETAILS_FILE)
-
 today = datetime.today().strftime("%b %d %Y")
 streamer = None
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--target_xirr", type=float, default=DEFAULT_TARGET_XIRR)
-args = parser.parse_args()
 
-
-def on_message(message):
+def on_message(message, nse_gsec_df, target_xirr):
     try:
         if not message.get("feeds"):
             # market status message
             print(
                 "Connected to Upstox, Market Status: ",
-                f"{json.dumps(message["marketInfo"]["segmentStatus"], indent=4)}",
+                json.dumps(message["marketInfo"]["segmentStatus"], indent=4),
             )
             return
 
-        df = enrich_gsec_market_feed(message, nse_gsec_df, args.target_xirr)
+        df = enrich_gsec_market_feed(message, nse_gsec_df, target_xirr)
         df = df[df["XIRR"] > 7].sort_values("XIRR", ascending=False)
 
         if not df.empty:
@@ -218,7 +212,7 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 
-def track_gsec():
+def track_gsec(nse_gsec_df, target_xirr):
     global streamer
 
     config = upstox_client.Configuration()
@@ -230,10 +224,21 @@ def track_gsec():
         upstox_client.ApiClient(config), keys, "full"
     )
 
-    streamer.on("message", on_message)
+    streamer.on(
+        "message",
+        lambda msg: on_message(msg, nse_gsec_df, target_xirr),
+    )
     signal.signal(signal.SIGINT, signal_handler)
     streamer.connect()
 
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--target_xirr", type=float, default=DEFAULT_TARGET_XIRR)
+    args = parser.parse_args()
+    nse_gsec_df = process_nse_gsec_csv(NSE_GSEC_LIVE_DATA_DIR, GSEC_DETAILS_FILE)
+    track_gsec(nse_gsec_df, args.target_xirr)
+
+
 if __name__ == "__main__":
-    track_gsec()
+    main()

@@ -39,7 +39,7 @@ uvicorn src.main:app --reload
 
 # GSEC Trackers
 # export UPSTOX_ACCESS_TOKEN
-python -m src.service.gsec_tracker --target_xirr=0.0801
+python -m src.service.gsec.gsec_tracker --target_xirr=0.0801
 
 # Price DB Writer
 python -m src.service.portfolio.ledger.price_db_writer
