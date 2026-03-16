@@ -184,7 +184,7 @@ def compute_for_commodity(
         round(current_invested / current_quantity, 2) if current_invested > 1 else 0.0
     )
     unrealized_pl = round(current_market_value - current_invested, 2)
-    total_pl = realized_pl + unrealized_pl
+    total_pl = realized_pl + unrealized_pl + dividend
 
     current_absolute_return = (
         unrealized_pl / current_invested if current_invested > 1 else 0.0
@@ -259,6 +259,7 @@ def compute_for_commodity(
             output["FL NUMBER"] = fl_number
     else:
         output["NAME"] = index_data.get("COMPANY NAME", "")
+        output["NIFTY INDEX"] = index_data.get("NIFTY INDEX", "")
 
     # 3. Core fields
     output["INVESTED"] = current_invested
@@ -285,17 +286,14 @@ def compute_for_commodity(
 
     # 7. Adding Nifty Index
     if not is_mf:
-        output["NIFTY INDEX"] = index_data.get("NIFTY INDEX", "")
-        output["30D %"] = index_data.get("30D %", 0.0)
-        output["365D %"] = index_data.get("365D %", 0.0)
         output["NEAR 52W HIGH %"] = index_data.get("NEAR 52W HIGH %", 0.0)
         output["NEAR 52W LOW %"] = index_data.get("NEAR 52W LOW %", 0.0)
-        output["FREE FLOATING MARKET CAP"] = index_data.get(
-            "FREE FLOATING MARKET CAP", 0.0
-        )
         output["PREV CLOSE"] = index_data.get("PREV CLOSE", 0.0)
         output["YEAR LOW"] = index_data.get("YEAR LOW", 0.0)
         output["YEAR HIGH"] = index_data.get("YEAR HIGH", 0.0)
+        output["FREE FLOATING MARKET CAP"] = index_data.get(
+            "FREE FLOATING MARKET CAP", 0.0
+        )
         output["TARGET INDEX WEIGHTAGE"] = index_data.get("TARGET INDEX WEIGHTAGE", 0.0)
 
     # 8. News link
@@ -344,21 +342,31 @@ def calculate_account_metrics_kpi(
 
     # if it is equity report add nifty index % allocation
     if report_type == "Equity":
-        index_investment = {}
+        index_market_value_totals = {}
+
         for row in report_data:
+            index_name = row.get("NIFTY INDEX")
+            current_value = row.get("MARKET VALUE", 0)
+            if index_name:
+                index_market_value_totals[index_name] = (
+                    index_market_value_totals.get(index_name, 0) + current_value
+                )
+
+        for row in report_data:
+            news_link = row.pop("NEWS LINK", None)
+
             # calculate buy and sell quantity based on index weightage
             current_value = row.get("MARKET VALUE", 0)
             price = row.get("PREV CLOSE", 0)
             benchmark_weight = row.get("TARGET INDEX WEIGHTAGE", 0)
 
             index_name = row.get("NIFTY INDEX")
-            if index_name:
-                index_investment[index_name] = (
-                    index_investment.get(index_name, 0) + current_value
-                )
 
-            if total_market_value > 0:
-                row["PORTFOLIO WEIGHT"] = round(current_value / total_market_value, 6)
+            index_total_market_value = index_market_value_totals.get(index_name, 0)
+            if index_total_market_value > 0:
+                row["PORTFOLIO WEIGHT"] = round(
+                    current_value / index_total_market_value, 6
+                )
             else:
                 row["PORTFOLIO WEIGHT"] = 0.0
 
@@ -371,11 +379,16 @@ def calculate_account_metrics_kpi(
 
             row["BUY/SELL"] = rebalance_qty
 
+            if news_link is not None:
+                row["NEWS LINK"] = news_link
+
         # assign index allocation KPIs
         index_allocation_kpis = []
-        for index_name, invested_amount in index_investment.items():
-            if total_invested > 0:
-                allocation_percent = round((invested_amount / total_invested) * 100, 2)
+        for index_name, invested_amount in index_market_value_totals.items():
+            if total_market_value > 0:
+                allocation_percent = round(
+                    (invested_amount / total_market_value) * 100, 2
+                )
             else:
                 allocation_percent = 0.0
             index_allocation_kpis.append(
@@ -391,7 +404,7 @@ def calculate_account_metrics_kpi(
             new_total = current_total + recommended_stock
             recommendation_kpis = []
             for index_name, target_weight in nifty_index_threshold.items():
-                current_value = index_investment.get(index_name, 0)
+                current_value = index_market_value_totals.get(index_name, 0)
                 target_value = new_total * target_weight
                 additional_investment = max(0, target_value - current_value)
                 recommendation_kpis.append(
@@ -415,7 +428,6 @@ def calculate_individual_xirr_report_data(
     individual_xirr_reports_data = []
     for report in individual_xirr_reports_config:
         data = get_account_performance_metrics_data(report, ledger_files, mutual_funds)
-        data.sort(key=lambda x: x.get("XIRR", 0), reverse=False)
         kpi_list = calculate_account_metrics_kpi(
             data,
             report["type"],

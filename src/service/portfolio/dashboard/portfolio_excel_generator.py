@@ -405,6 +405,7 @@ if __name__ == "__main__":
                 start_col=2,
                 cards_per_row=4,
             )
+            report_data.sort(key=lambda x: x.get("ABSOLUTE RETURN", 0), reverse=False)
             # ws_xirr.freeze_panes(13, 2)
         else:
             kpi_end_row = print_kpi_cards(
@@ -415,6 +416,7 @@ if __name__ == "__main__":
                 start_col=2,
                 cards_per_row=3,
             )
+            report_data.sort(key=lambda x: x.get("XIRR", 0), reverse=False)
             # ws_xirr.freeze_panes(11, 2)
 
         print_table(
