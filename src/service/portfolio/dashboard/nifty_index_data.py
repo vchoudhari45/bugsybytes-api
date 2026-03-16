@@ -58,6 +58,12 @@ def fetch_nse_stocks():
             for stock in data.get("data", []):
                 symbol = stock.get("symbol")
 
+                if not symbol:
+                    continue
+
+                if symbol.upper().strip() == index_name.upper().strip():
+                    continue
+
                 ffmc = round(stock.get("ffmc", 0) or 0, 2)
 
                 if symbol and symbol not in all_stocks:  # Priority logic
@@ -68,7 +74,7 @@ def fetch_nse_stocks():
                         "365D %": round(stock.get("perChange365d", 0), 2),
                         "NEAR 52W HIGH %": round(stock.get("nearWKH", 0), 2),
                         "NEAR 52W LOW %": round(stock.get("nearWKL", 0), 2),
-                        "FREE FLOATING MARKET CAP": round(stock.get("ffmc", 0), 2),
+                        "FREE FLOATING MARKET CAP": ffmc,
                         "PREV CLOSE": round(stock.get("previousClose", 0), 2),
                         "YEAR LOW": round(stock.get("yearLow", 0), 2),
                         "YEAR HIGH": round(stock.get("yearHigh", 0), 2),
@@ -79,13 +85,51 @@ def fetch_nse_stocks():
         except Exception as e:
             print(f"Failed to fetch {index_name}: {e}")
 
-        for symbol, stock_data in all_stocks.items():
-            index_name = stock_data["NIFTY INDEX"]
-            ffmc = stock_data["FREE FLOATING MARKET CAP"]
-            total_ffmc = index_ffmc_totals.get(index_name, 0)
-            if total_ffmc > 0:
-                stock_data["TARGET INDEX WEIGHTAGE"] = round(ffmc / total_ffmc, 6)
-            else:
-                stock_data["TARGET INDEX WEIGHTAGE"] = 0.0
+    for symbol, stock_data in all_stocks.items():
+        index_name = stock_data["NIFTY INDEX"]
+        ffmc = stock_data["FREE FLOATING MARKET CAP"]
+        total_ffmc = index_ffmc_totals.get(index_name, 0)
+        if total_ffmc > 0:
+            stock_data["TARGET INDEX WEIGHTAGE"] = round(ffmc / total_ffmc, 6)
+        else:
+            stock_data["TARGET INDEX WEIGHTAGE"] = 0.0
+
+    weight_sums = {}
+    for stock_data in all_stocks.values():
+        index_name = stock_data["NIFTY INDEX"]
+        weight = stock_data["TARGET INDEX WEIGHTAGE"]
+        weight_sums[index_name] = weight_sums.get(index_name, 0) + weight
+
+    print("\nWeight validation per index:")
+    for index_name, total_weight in weight_sums.items():
+        # tolerance because of rounding
+        if abs(total_weight - 1.0) < 0.001:
+            print(f"✅ {index_name} weight sum = {total_weight:.6f}")
+        else:
+            print(f"⚠️  {index_name} weight sum = {total_weight:.6f} (unexpected)")
 
     return all_stocks
+
+
+# import csv
+# import sys
+# def main():
+#     try:
+#         stocks = fetch_nse_stocks()
+#         print(f"Fetched {len(stocks)} stocks\n")
+#         if not stocks:
+#             return
+#         # CSV header
+#         fieldnames = ["SYMBOL"] + list(next(iter(stocks.values())).keys())
+#         writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames)
+#         writer.writeheader()
+#         # Write rows
+#         for symbol, data in stocks.items():
+#             row = {"SYMBOL": symbol}
+#             row.update(data)
+#             writer.writerow(row)
+#     except Exception as e:
+#         print(f"Error running script: {e}")
+
+# if __name__ == "__main__":
+#     main()

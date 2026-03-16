@@ -106,7 +106,7 @@ def calculate_gsec_kpi(xirr_data, portfolio_xirr_value):
     kpi_list = [
         {"KPI": "INVESTED", "VALUE": total_invested},
         {"KPI": "NUMBER OF G-SECS", "VALUE": number_of_gsecs},
-        {"KPI": "PORTFOLIO XIRR", "VALUE": portfolio_xirr_value},
+        {"KPI": "PORTFOLIO XIRR", "VALUE": portfolio_xirr_value * 100},
     ]
     return kpi_list
 
