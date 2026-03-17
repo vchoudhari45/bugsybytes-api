@@ -5,18 +5,14 @@ from src.service.util import cashflow_generator as cg
 
 
 def test_market_shifted():
-    # Test a weekday date - should return same date
     dt = date(2026, 3, 16)  # Monday
     shifted = cg.market_shifted(dt)
     assert shifted == dt
 
-    # Test a weekend date (Saturday) - should shift to next Monday
     dt = date(2026, 3, 14)  # Saturday
     shifted = cg.market_shifted(dt)
-    # March 16, 2026 is Monday
     assert shifted == date(2026, 3, 16)
 
-    # Test Sunday
     dt = date(2026, 3, 15)  # Sunday
     shifted = cg.market_shifted(dt)
     assert shifted == date(2026, 3, 16)
@@ -142,7 +138,7 @@ def test_build_gsec_cashflows_deterministic():
         coupon_frequency=coupon_frequency,
         face_value=face_value,
     )
-
+    # expected values
     expected_dates = [
         date(2026, 3, 19),
         date(2026, 3, 20),
@@ -153,6 +149,7 @@ def test_build_gsec_cashflows_deterministic():
     ]
     expected_cashflows = [0.0, 5.0, 5.0, 5.0, 5.0, 105.0]
 
+    # asserts
     assert dates == expected_dates, f"Expected dates {expected_dates}, got {dates}"
     assert (
         cashflows == expected_cashflows
