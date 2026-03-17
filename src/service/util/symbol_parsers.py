@@ -15,7 +15,7 @@ def extract_coupon_from_symbol(symbol: str) -> float:
     if not isinstance(symbol, str):
         return np.nan
 
-    match = re.match(r"^(\d+)", symbol)
+    match = re.match(r"^(\d+)(?=[A-Za-z])", symbol)
     if not match:
         return np.nan
 
