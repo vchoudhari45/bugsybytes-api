@@ -21,7 +21,6 @@ def test_process_nse_gsec_csv_golden_path():
         EXPECTED_FILE,
         parse_dates=["DATE", "MATURITY DATE"],
     )
-
     assert_dataframes_equal(result_df, expected_df)
 
 

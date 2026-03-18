@@ -1,6 +1,6 @@
-from datetime import date, timedelta
+from datetime import date
+from unittest.mock import patch
 
-from src.data.config import QUANTITY_LAG_DAYS
 from src.service.util import cashflow_generator as cg
 
 
@@ -121,24 +121,25 @@ def test_apply_coupon_and_principal_simple():
             ), f"Mismatch on {dt} key {key}: expected {val}, got {cf[dt].get(key)}"
 
 
-def test_build_gsec_cashflows_deterministic():
-    # input
+def test_build_gsec_cashflows():
     fixed_today = date(2026, 3, 17)
-    settlement_date = fixed_today + timedelta(days=QUANTITY_LAG_DAYS)
-    settlement_date = cg.market_shifted(settlement_date)
+
     maturity_str = "Mar 20 2028"
     coupon_rate = 10
     coupon_frequency = 2
     face_value = 100
 
-    # function call
-    dates, cashflows = cg.build_gsec_cashflows(
-        maturity_date=maturity_str,
-        coupon_rate=coupon_rate,
-        coupon_frequency=coupon_frequency,
-        face_value=face_value,
-    )
-    # expected values
+    with patch("src.service.util.cashflow_generator.date") as mock_date:
+        mock_date.today.return_value = fixed_today
+        mock_date.side_effect = lambda *args, **kwargs: date(*args, **kwargs)
+
+        dates, cashflows = cg.build_gsec_cashflows(
+            maturity_date=maturity_str,
+            coupon_rate=coupon_rate,
+            coupon_frequency=coupon_frequency,
+            face_value=face_value,
+        )
+
     expected_dates = [
         date(2026, 3, 19),
         date(2026, 3, 20),
@@ -147,10 +148,8 @@ def test_build_gsec_cashflows_deterministic():
         date(2027, 9, 20),
         date(2028, 3, 20),
     ]
+
     expected_cashflows = [0.0, 5.0, 5.0, 5.0, 5.0, 105.0]
 
-    # asserts
-    assert dates == expected_dates, f"Expected dates {expected_dates}, got {dates}"
-    assert (
-        cashflows == expected_cashflows
-    ), f"Expected cashflows {expected_cashflows}, got {cashflows}"
+    assert dates == expected_dates
+    assert cashflows == expected_cashflows

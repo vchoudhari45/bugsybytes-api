@@ -13,15 +13,17 @@ from src.service.util.date_util import parse_indian_date_format
 from src.service.util.xirr_calculator import xirr
 
 _AMFI_CACHE = None
-_NIFTY_INDEX_CACHE = fetch_nse_stocks()
+_NIFTY_INDEX_CACHE = None
+
+
+def fetch_nifty_index():
+    global _NIFTY_INDEX_CACHE
+    if _NIFTY_INDEX_CACHE is None:
+        _NIFTY_INDEX_CACHE = fetch_nse_stocks()
+    return _NIFTY_INDEX_CACHE
 
 
 def fetch_amfi_isin_scheme_map(session):
-    """
-    Fetch NAVAll.txt from AMFI and return dict:
-    { ISIN -> Scheme Name }
-    """
-
     global _AMFI_CACHE
 
     if _AMFI_CACHE is not None:
@@ -114,6 +116,7 @@ def find_fund_by_isin(mutual_funds, account_name, isin):
 def compute_for_commodity(
     commodity,
     amfi_isin_map,
+    nifty_index_data,
     report,
     ledger_files,
     today,
@@ -215,7 +218,7 @@ def compute_for_commodity(
         metrics = get_metrics(company_id, session)
 
     # Get Nifty Index Data
-    index_data = _NIFTY_INDEX_CACHE.get(commodity, {}) if not is_mf else {}
+    index_data = nifty_index_data.get(commodity, {}) if not is_mf else {}
 
     # adding display name for mutual fund
     google_finance_code = ""
@@ -370,7 +373,7 @@ def calculate_account_metrics_kpi(
             else:
                 row["PORTFOLIO WEIGHT"] = 0.0
 
-            target_value = total_market_value * benchmark_weight
+            target_value = index_total_market_value * benchmark_weight
             difference = target_value - current_value
 
             rebalance_qty = 0.0
@@ -450,6 +453,7 @@ def get_account_performance_metrics_data(report, ledger_files, mutual_funds):
     today = datetime.today().date()
     session = requests.Session()
     amfi_isin_map = fetch_amfi_isin_scheme_map(session)
+    nifty_index_data = fetch_nifty_index()
 
     # Get all the commodities
     commodities = get_ledger_cli_output_by_config(
@@ -462,6 +466,7 @@ def get_account_performance_metrics_data(report, ledger_files, mutual_funds):
         compute_func = partial(
             compute_for_commodity,
             amfi_isin_map=amfi_isin_map,
+            nifty_index_data=nifty_index_data,
             report=report,
             ledger_files=ledger_files,
             today=today,

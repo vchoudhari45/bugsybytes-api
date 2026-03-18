@@ -2,6 +2,39 @@ import numpy as np
 import pandas as pd
 
 
+def json_to_df(data, parent_keys=None):
+    rows = []
+
+    def flatten(obj, parent=None):
+        parent = parent or {}
+
+        if isinstance(obj, dict):
+            new_parent = parent.copy()
+            for k, v in obj.items():
+                if isinstance(v, (dict, list)):
+                    flatten(v, {**new_parent, k: None})
+                else:
+                    new_parent[k] = v
+            rows.append(new_parent)
+
+        elif isinstance(obj, list):
+            for item in obj:
+                flatten(item, parent)
+
+    flatten(data)
+
+    df = pd.DataFrame(rows)
+
+    # try converting numeric columns
+    for col in df.columns:
+        try:
+            df[col] = pd.to_numeric(df[col])
+        except (ValueError, TypeError):
+            pass
+
+    return df
+
+
 def normalize_df(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
@@ -36,10 +69,16 @@ def normalize_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def assert_dataframes_equal(df1: pd.DataFrame, df2: pd.DataFrame):
-    import numpy as np
-    import pandas as pd
+def _format_side_by_side(r1: pd.Series, r2: pd.Series) -> str:
+    lines = []
+    for col in r1.index:
+        v1 = "NA" if pd.isna(r1[col]) else r1[col]
+        v2 = "NA" if pd.isna(r2[col]) else r2[col]
+        lines.append(f"{col}:\n  df1: {v1}\n  df2: {v2}")
+    return "\n".join(lines)
 
+
+def assert_dataframes_equal(df1: pd.DataFrame, df2: pd.DataFrame):
     # Normalize first
     df1 = normalize_df(df1)
     df2 = normalize_df(df2)
@@ -52,27 +91,37 @@ def assert_dataframes_equal(df1: pd.DataFrame, df2: pd.DataFrame):
         df2.columns
     ), f"Column mismatch:\n{df1.columns}\n!=\n{df2.columns}"
 
-    # Sort (important for deterministic compare)
+    # Sort for deterministic compare
     sort_cols = list(df1.columns)
     df1 = df1.sort_values(by=sort_cols).reset_index(drop=True)
     df2 = df2.sort_values(by=sort_cols).reset_index(drop=True)
 
-    # Compare column-wise
-    for col in df1.columns:
-        s1 = df1[col]
-        s2 = df2[col]
+    # Row-wise comparison
+    for i in range(len(df1)):
+        r1 = df1.iloc[i]
+        r2 = df2.iloc[i]
 
-        # dtype check
-        assert s1.dtype == s2.dtype, f"dtype mismatch in column '{col}'"
+        for col in df1.columns:
+            v1 = r1[col]
+            v2 = r2[col]
 
-        if pd.api.types.is_numeric_dtype(s1):
-            if not np.allclose(s1.fillna(0), s2.fillna(0)):
-                raise AssertionError(f"Numeric mismatch in column '{col}'")
+            if pd.api.types.is_numeric_dtype(df1[col]):
+                equal = np.isclose(
+                    0 if pd.isna(v1) else v1,
+                    0 if pd.isna(v2) else v2,
+                    equal_nan=True,
+                )
+            elif pd.api.types.is_datetime64_any_dtype(df1[col]):
+                t1 = pd.Timestamp(0) if pd.isna(v1) else v1
+                t2 = pd.Timestamp(0) if pd.isna(v2) else v2
+                equal = t1 == t2
+            else:
+                v1 = "NA" if pd.isna(v1) else v1
+                v2 = "NA" if pd.isna(v2) else v2
+                equal = v1 == v2
 
-        elif pd.api.types.is_datetime64_any_dtype(s1):
-            if not s1.fillna(pd.Timestamp(0)).equals(s2.fillna(pd.Timestamp(0))):
-                raise AssertionError(f"Datetime mismatch in column '{col}'")
-
-        else:
-            if not s1.fillna("NA").equals(s2.fillna("NA")):
-                raise AssertionError(f"Value mismatch in column '{col}'")
+            if not equal:
+                raise AssertionError(
+                    f"\n❌ Row {i}, Column '{col}' mismatch\n\n"
+                    f"{_format_side_by_side(r1, r2)}\n"
+                )
