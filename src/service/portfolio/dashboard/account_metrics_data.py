@@ -409,7 +409,7 @@ def calculate_account_metrics_kpi(
             for index_name, target_weight in nifty_index_threshold.items():
                 current_value = index_market_value_totals.get(index_name, 0)
                 target_value = new_total * target_weight
-                additional_investment = max(0, target_value - current_value)
+                additional_investment = target_value - current_value
                 recommendation_kpis.append(
                     {
                         "KPI": f"RECOMMENDED {index_name} PURCHASE",
