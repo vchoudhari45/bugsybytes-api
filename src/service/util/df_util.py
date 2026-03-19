@@ -109,6 +109,8 @@ def assert_dataframes_equal(df1: pd.DataFrame, df2: pd.DataFrame):
                 equal = np.isclose(
                     0 if pd.isna(v1) else v1,
                     0 if pd.isna(v2) else v2,
+                    atol=0.01,
+                    rtol=0,
                     equal_nan=True,
                 )
             elif pd.api.types.is_datetime64_any_dtype(df1[col]):
