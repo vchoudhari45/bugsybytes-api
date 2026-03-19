@@ -4,6 +4,7 @@ import sys
 from unittest.mock import patch
 
 import yaml
+from freezegun import freeze_time
 
 from src.service.portfolio.dashboard.account_metrics_data import (
     calculate_individual_xirr_report_data,
@@ -47,6 +48,7 @@ def debug_account_metrics_data(data):
     writer.writerows(rows)
 
 
+@freeze_time("2026-03-18")
 def test_get_account_performance_metrics_data():
     # read yaml
     with open("test/data/portfolio/lookup/test_dashboard_config.yaml", "r") as f:

@@ -15,3 +15,6 @@ locust
 
 # httpie: command-line HTTP client for manual API testing
 httpie
+
+# freezegun
+freezegun

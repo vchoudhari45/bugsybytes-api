@@ -55,6 +55,7 @@ def fetch_nse_stocks():
         try:
             response = get_with_retry(session, url)
             data = response.json()
+
             for stock in data.get("data", []):
                 symbol = stock.get("symbol")
 
