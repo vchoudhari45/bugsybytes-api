@@ -115,7 +115,7 @@ def parse_ledger_cli_gsec_register_output(output):
             continue
 
         arr = line.split("|")
-        arr_filtered = [x for x in arr if x]
+        arr_filtered = [x.strip() for x in arr if x]
 
         current_date = arr_filtered[0]
         quantity = float(arr_filtered[-2].split(" ")[0].replace(",", ""))
@@ -137,7 +137,7 @@ def parse_ledger_cli_register_output(output):
         if not line:
             continue
         arr = line.split("|")
-        arr_filtered = [x for x in arr if x]
+        arr_filtered = [x.strip() for x in arr if x]
 
         current_date = arr_filtered[0]
         account = arr_filtered[1]
