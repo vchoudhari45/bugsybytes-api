@@ -54,7 +54,7 @@ def calculate_category_tables_data(
             key=lambda x: x["Amount"],
             reverse=True,
         )
-        category_tables_data.append((title, sorted_data))
+        category_tables_data.append({"Category": title, "Entries": sorted_data})
 
     return category_tables_data
 

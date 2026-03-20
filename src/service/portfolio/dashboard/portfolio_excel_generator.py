@@ -364,7 +364,9 @@ if __name__ == "__main__":
     tables_in_current_row = 0
     max_row_in_block = current_row
 
-    for title, data in category_tables_data:
+    for item in category_tables_data:
+        title = item["Category"]
+        data = item["Entries"]
         end_row, width = print_table(
             worksheet=worksheet,
             workbook=workbook,

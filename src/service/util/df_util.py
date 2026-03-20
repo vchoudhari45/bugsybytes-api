@@ -52,9 +52,13 @@ def normalize_df(df: pd.DataFrame) -> pd.DataFrame:
     for col in df.columns:
         converted = pd.to_numeric(df[col], errors="coerce")
 
-        # if most values are numeric → treat as numeric
         if converted.notna().sum() > 0 and (converted.notna().sum() / len(df) > 0.7):
-            df[col] = converted
+            original_non_null = df[col].dropna()
+            all_numeric_compatible = (
+                pd.to_numeric(original_non_null, errors="coerce").notna().all()
+            )
+            if all_numeric_compatible:
+                df[col] = converted
 
     # Try converting columns to datetime
     for col in df.columns:
@@ -106,20 +110,26 @@ def assert_dataframes_equal(df1: pd.DataFrame, df2: pd.DataFrame):
             v2 = r2[col]
 
             if pd.api.types.is_numeric_dtype(df1[col]):
-                equal = np.isclose(
-                    0 if pd.isna(v1) else v1,
-                    0 if pd.isna(v2) else v2,
-                    atol=0.01,
-                    rtol=0,
-                    equal_nan=True,
-                )
+                try:
+                    f1 = float(v1) if not pd.isna(v1) else 0.0
+                    f2 = float(v2) if not pd.isna(v2) else 0.0
+                except (ValueError, TypeError):
+                    f1, f2 = str(v1), str(v2)
+                    equal = f1 == f2
+                else:
+                    equal = np.isclose(f1, f2, atol=0.01, rtol=0, equal_nan=True)
+
             elif pd.api.types.is_datetime64_any_dtype(df1[col]):
                 t1 = pd.Timestamp(0) if pd.isna(v1) else v1
                 t2 = pd.Timestamp(0) if pd.isna(v2) else v2
                 equal = t1 == t2
             else:
-                v1 = "NA" if pd.isna(v1) else v1
-                v2 = "NA" if pd.isna(v2) else v2
+                try:
+                    v1 = "NA" if pd.isna(v1) else str(v1)
+                    v2 = "NA" if pd.isna(v2) else str(v2)
+                except (TypeError, ValueError):
+                    v1 = str(v1)
+                    v2 = str(v2)
                 equal = v1 == v2
 
             if not equal:

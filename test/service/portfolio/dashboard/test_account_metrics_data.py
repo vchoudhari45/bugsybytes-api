@@ -49,7 +49,7 @@ def debug_account_metrics_data(data):
 
 
 @freeze_time("2026-03-18")
-def test_get_account_performance_metrics_data():
+def test_calculate_individual_xirr_report_data():
     # read yaml
     with open("test/data/portfolio/lookup/test_dashboard_config.yaml", "r") as f:
         dashboard_config = yaml.safe_load(f)
