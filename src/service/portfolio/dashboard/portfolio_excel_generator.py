@@ -145,7 +145,7 @@ def print_table(
     headers = []
     for entry in data:
         for key in entry.keys():
-            if key != "_style" and key not in headers:  # ✅ skip _style
+            if key != "_style" and key not in headers:
                 headers.append(key)
 
     row = start_row
@@ -457,6 +457,7 @@ if __name__ == "__main__":
     for report in gsec_individual_xirr_reports_data:
         report_name = report["name"]
         cashflow_data = report["cashflow_data"]
+        reconciled_cashflow_data = report["reconciled_cashflow_data"]
 
         if not cashflow_data:
             continue
@@ -470,6 +471,19 @@ if __name__ == "__main__":
             layout=layout,
             title=report_name,
             data=cashflow_data,
+            start_row=0,
+            start_col=0,
+        )
+
+        # Reconciled Cashflow Sheet
+        reconciled_cashflow_report_name = f"{report['name']} Reconciled"
+        ws_reconciled_cashflow = workbook.add_worksheet(reconciled_cashflow_report_name)
+        print_table(
+            worksheet=ws_reconciled_cashflow,
+            workbook=workbook,
+            layout=layout,
+            title=reconciled_cashflow_report_name,
+            data=reconciled_cashflow_data,
             start_row=0,
             start_col=0,
         )

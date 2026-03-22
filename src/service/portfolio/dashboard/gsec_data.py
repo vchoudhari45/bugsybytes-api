@@ -28,6 +28,12 @@ assert gsec_maturity_date_override_df["SYMBOL"].is_unique
 gsec_maturity_date_override_df = gsec_maturity_date_override_df.set_index("SYMBOL")
 
 
+pd.set_option("display.max_columns", None)
+pd.set_option("display.max_rows", None)
+pd.set_option("display.max_colwidth", None)
+pd.set_option("display.width", None)
+
+
 def normalize_date(date_value):
     date_obj = parse_indian_date_format(date_value)
     return next_market_day(date_obj, QUANTITY_LAG_DAYS)
@@ -168,8 +174,9 @@ def calculate_gsec_individual_xirr_report_data(
             )
 
         # validate gsec coupons
-        validate_gsec_coupons(cashflow_rows, ledger_files, report["validate"])
-
+        reconciled_cashflow_data = validate_gsec_coupons(
+            cashflow_rows, ledger_files, report
+        )
         gsec_individual_xirr_reports_data.append(
             {
                 "name": report["name"],
@@ -178,6 +185,7 @@ def calculate_gsec_individual_xirr_report_data(
                 "kpi_list": calculate_gsec_kpi(
                     xirr_rows, round(portfolio_xirr_value, 2)
                 ),
+                "reconciled_cashflow_data": reconciled_cashflow_data,
             }
         )
 
@@ -206,34 +214,134 @@ def generate_gsec_portfolio_df(ledger_files, report):
     return xirr_output
 
 
-def validate_gsec_coupons(cashflow_rows, ledger_files, gsec_ci_validator):
+def validate_gsec_coupons(cashflow_rows, ledger_files, gsec_ci_validator, threshold=2):
     register_data = get_ledger_cli_output_by_config(
-        gsec_ci_validator, ledger_files, None, "gsec_register"
+        gsec_ci_validator["validate"], ledger_files, None, "gsec_register"
     )
 
-    # Build amount lookup
     def norm(x):
-        return round(float(x), 0)
+        return round(float(x), 2)
 
-    amount_counter = Counter(norm(entry["amount"]) for entry in register_data)
+    # max_paid_date + register counter
+    max_paid_date = None
+    amount_counter = Counter()
 
-    # Iterate cashflow rows
+    for entry in register_data:
+        amt = norm(entry["amount"])
+        amount_counter[amt] += 1
+
+        entry_date = normalize_date(entry["date"])
+        if max_paid_date is None or entry_date > max_paid_date:
+            max_paid_date = entry_date
+
+    # exceptions
+    exceptions_set = set(gsec_ci_validator.get("validate_exceptions", []))
+
+    # build cashflow list
+    cashflow_list = []
+    non_paid_cashflow_list = []
     for row in cashflow_rows:
-        if "_style" not in row:
-            row["_style"] = {}
+        row_date = normalize_date(row["DATE"])
 
         for key, value in row.items():
-            if key in ("DATE", "PAY DAY", "_style"):
+            if key in ("DATE", "PAY DAY"):
                 continue
 
-            if not isinstance(value, (int, float)):
-                continue
+            if isinstance(value, (int, float)) and value > 0:
+                amt = norm(value)
 
-            amt = norm(value)
+                lookup_key = f"{row['DATE']}|{key}|{amt}"
 
-            # Check & consume
-            if amount_counter[amt] > 0:
-                row["_style"][key] = {"bg_color": "#00FF00"}
-                amount_counter[amt] -= 1
+                if lookup_key in exceptions_set:
+                    continue
 
-    return cashflow_rows
+                beyond_max_date = max_paid_date and row_date > max_paid_date
+
+                if beyond_max_date:
+                    non_paid_cashflow_list.append(
+                        {
+                            "date": row["DATE"],
+                            "field": key,
+                            "amount": amt,
+                        }
+                    )
+                else:
+                    cashflow_list.append(
+                        {
+                            "date": row["DATE"],
+                            "field": key,
+                            "amount": amt,
+                        }
+                    )
+
+    # sort
+    cashflow_list.sort(key=lambda x: x["amount"])
+
+    register_list = []
+    for amt, cnt in amount_counter.items():
+        register_list.extend([amt] * cnt)
+
+    register_list.sort()
+
+    # comparison
+    max_len = max(len(cashflow_list), len(register_list))
+
+    result = []
+    all_match = True
+
+    for i in range(max_len):
+        cf = cashflow_list[i] if i < len(cashflow_list) else None
+        reg = register_list[i] if i < len(register_list) else None
+
+        is_match = False
+        expected_amt = cf["amount"] if cf else None
+        actual_amt = reg
+        diff = (
+            round(expected_amt - actual_amt, 2)
+            if expected_amt is not None and actual_amt is not None
+            else None
+        )
+        is_match = abs(diff) <= threshold if diff is not None else False
+
+        if not is_match:
+            all_match = False
+
+        result.append(
+            {
+                "DATE": cf["date"] if cf else None,
+                "GSEC": cf["field"] if cf else None,
+                "EXPECTED CASHFLOW AMOUNT": expected_amt,
+                "ACTUAL CASHFLOW AMOUNT": actual_amt,
+                "DIFFERENCE": diff,
+                "MATCH": is_match,
+            }
+        )
+
+    # Add non-paid cashflow rows at the end with empty ACTUAL, DIFFERENCE, MATCH
+    for r in non_paid_cashflow_list:
+        result.append(
+            {
+                "DATE": r["date"],
+                "GSEC": r["field"],
+                "EXPECTED CASHFLOW AMOUNT": r["amount"],
+                "ACTUAL CASHFLOW AMOUNT": "",
+                "DIFFERENCE": "",
+                "MATCH": "",
+            }
+        )
+
+    # Sort by date and GSEC
+    result.sort(key=lambda x: (x["DATE"] or "", x["GSEC"] or ""))
+
+    # mismatch handling
+    if not all_match:
+        print(
+            "\n❌ Mismatch found GSec coupons reconciliation for "
+            f"{gsec_ci_validator.get('name', '')}, till date: {max_paid_date}"
+        )
+    else:
+        print(
+            f"✅ All GSec coupons reconciled for {gsec_ci_validator['name']}, till date: {max_paid_date}"
+        )
+
+    return result
