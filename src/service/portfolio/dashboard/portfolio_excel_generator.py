@@ -145,7 +145,7 @@ def print_table(
     headers = []
     for entry in data:
         for key in entry.keys():
-            if key not in headers:
+            if key != "_style" and key not in headers:  # ✅ skip _style
                 headers.append(key)
 
     row = start_row
@@ -155,15 +155,43 @@ def print_table(
         worksheet.write(row, start_col + col, header, layout["header_fmt"])
     row += 1
 
+    format_cache = {}
+
     # Write rows
     for entry in data:
+        style_map = entry.get("_style", {})
+
         for col, header in enumerate(headers):
             value = entry.get(header, "")
             header_upper = header.upper()
 
+            if value is None:
+                base = layout["account_fmt"]
+            elif header_upper in link_fields_upper:
+                base = layout.get("link_fmt")
+            elif header_upper in percent_fields_upper:
+                base = layout["percent_fmt"]
+            elif header_upper in amount_fields_upper:
+                base = layout["amount_fmt"]
+            elif isinstance(value, (datetime, date)):
+                base = layout["date_fmt"]
+            else:
+                base = layout["account_fmt"]
+
+            style = style_map.get(header)
+            if style:
+                key = (id(base), tuple(sorted(style.items())))
+                if key not in format_cache:
+                    props = getattr(base, "properties", {}).copy()
+                    props.update(style)
+                    format_cache[key] = workbook.add_format(props)
+                fmt = format_cache[key]
+            else:
+                fmt = base
+
             # Handle None values safely
             if value is None:
-                worksheet.write(row, start_col + col, "", layout["account_fmt"])
+                worksheet.write(row, start_col + col, "", fmt)
                 continue
 
             # Link fields
@@ -172,31 +200,25 @@ def print_table(
                     row,
                     start_col + col,
                     value,
-                    layout.get("link_fmt"),
+                    fmt,
                     string="View",
                 )
 
             # Percent fields
             elif header_upper in percent_fields_upper:
-                worksheet.write(
-                    row, start_col + col, value * 100, layout["percent_fmt"]
-                )
-
-            # Amount fields
-            elif header_upper in amount_fields_upper:
-                worksheet.write(row, start_col + col, value, layout["amount_fmt"])
+                worksheet.write(row, start_col + col, value * 100, fmt)
 
             elif isinstance(value, (datetime, date)):
                 worksheet.write_datetime(
                     row,
                     start_col + col,
                     datetime.combine(value, datetime.min.time()),
-                    layout["date_fmt"],
+                    fmt,
                 )
 
             # Default format
             else:
-                worksheet.write(row, start_col + col, value, layout["account_fmt"])
+                worksheet.write(row, start_col + col, value, fmt)
         row += 1
 
     row += 1  # spacing after table

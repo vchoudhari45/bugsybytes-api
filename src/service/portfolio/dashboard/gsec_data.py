@@ -1,6 +1,6 @@
 import concurrent.futures
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from functools import partial
 
 import pandas as pd
@@ -167,6 +167,9 @@ def calculate_gsec_individual_xirr_report_data(
                 cashflows=portfolio_amounts,
             )
 
+        # validate gsec coupons
+        validate_gsec_coupons(cashflow_rows, ledger_files, report["validate"])
+
         gsec_individual_xirr_reports_data.append(
             {
                 "name": report["name"],
@@ -201,3 +204,36 @@ def generate_gsec_portfolio_df(ledger_files, report):
             xirr_output = [r for r in results if r is not None]
 
     return xirr_output
+
+
+def validate_gsec_coupons(cashflow_rows, ledger_files, gsec_ci_validator):
+    register_data = get_ledger_cli_output_by_config(
+        gsec_ci_validator, ledger_files, None, "gsec_register"
+    )
+
+    # Build amount lookup
+    def norm(x):
+        return round(float(x), 0)
+
+    amount_counter = Counter(norm(entry["amount"]) for entry in register_data)
+
+    # Iterate cashflow rows
+    for row in cashflow_rows:
+        if "_style" not in row:
+            row["_style"] = {}
+
+        for key, value in row.items():
+            if key in ("DATE", "PAY DAY", "_style"):
+                continue
+
+            if not isinstance(value, (int, float)):
+                continue
+
+            amt = norm(value)
+
+            # Check & consume
+            if amount_counter[amt] > 0:
+                row["_style"][key] = {"bg_color": "#00FF00"}
+                amount_counter[amt] -= 1
+
+    return cashflow_rows

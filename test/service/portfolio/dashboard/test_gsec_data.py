@@ -42,6 +42,8 @@ def test_calculate_gsec_individual_xirr_report_data():
         elif command_type.lower() == "gsec_register":
             if cmd == "gsec register":
                 return ledger_data["gsec_register"][commodity]["purchase_or_sell"]
+            else:
+                return ledger_data["gsec_validate"]
 
     with patch(
         "src.service.portfolio.dashboard.gsec_data.get_ledger_cli_output_by_config",
