@@ -74,6 +74,8 @@ def calculate_summary_data(
     )
     liquid_cash = sum_accounts(
         balance_sheet_data, "Assets:Bank", zero_balance_accounts_config
+    ) + sum_accounts(
+        balance_sheet_data, "Assets:Investments:Cash", zero_balance_accounts_config
     )
     income = sum_accounts(income_statement_data, "Income", zero_balance_accounts_config)
     expenses = sum_accounts(
