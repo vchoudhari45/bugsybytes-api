@@ -14,7 +14,7 @@ def sum_accounts(data, prefix, zero_list):
     return sum(
         entry["amount"]
         for entry in data
-        if entry["account"].startswith(prefix)
+        if entry["account"].startswith(prefix.replace('"', ""))
         and not is_zero_account(entry["account"], zero_list)
     )
 
@@ -23,7 +23,7 @@ def filter_accounts(data, prefix, zero_list):
     return [
         entry
         for entry in data
-        if entry["account"].startswith(prefix)
+        if entry["account"].startswith(prefix.replace('"', ""))
         and not is_zero_account(entry["account"], zero_list)
     ]
 

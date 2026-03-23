@@ -38,16 +38,6 @@ def generate_coupon_dates(start_date, maturity_date, coupon_frequency):
     return coupon_dates
 
 
-def empty_txn_slot():
-    """Empty transaction slot"""
-    return {"quantity": 0, "transaction_amount": 0}
-
-
-def empty_coupon_slot():
-    """Empty coupon slot"""
-    return {"quantity": 0, "coupon_date": True}
-
-
 def apply_coupon_and_principal(cf, coupon_rate, coupon_frequency, face_value):
     """
     Apply coupon + principal using running quantity

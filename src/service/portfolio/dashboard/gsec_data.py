@@ -12,7 +12,6 @@ from src.service.portfolio.ledger.ledger_cli_output_parser import (
 )
 from src.service.util.cashflow_generator import (
     apply_coupon_and_principal,
-    empty_coupon_slot,
     generate_coupon_dates,
     market_shifted,
 )
@@ -77,7 +76,9 @@ def compute_for_commodity(commodity, report, ledger_files, account_name):
     face_value = float(row["FACE VALUE"])
     first_date = min(cashflow_dates_and_quantity.keys())
     for d in generate_coupon_dates(first_date, maturity_date, coupon_frequency):
-        cashflow_dates_and_quantity.setdefault(d, empty_coupon_slot())
+        slot = cashflow_dates_and_quantity.setdefault(d, {})
+        slot.setdefault("quantity", 0)
+        slot.setdefault("coupon_date", True)
 
     cashflow_dates_and_quantity.setdefault(
         market_shifted(maturity_date),
@@ -140,7 +141,7 @@ def calculate_gsec_individual_xirr_report_data(
 
             for dt, entry in cashflow_data.items():
                 cashflow_value = round(entry.get("total_cashflow", 0.0), 2)
-                symbol_cashflow_map[symbol][dt] = cashflow_value
+                symbol_cashflow_map[symbol][dt] = entry
                 all_dates.add(dt)
                 portfolio_cashflow_map[dt] += cashflow_value
 
@@ -148,17 +149,24 @@ def calculate_gsec_individual_xirr_report_data(
         sorted_symbols = sorted(symbol_cashflow_map.keys())
 
         cashflow_rows = []
+        coupon_rows = []
         for dt in sorted_dates:
             row = {"DATE": dt}
+            coupon_row = {"DATE": dt}
             payday = False
             for symbol in sorted_symbols:
-                value = symbol_cashflow_map[symbol].get(dt, 0.0)
-                row[symbol] = value
-                # If any symbol pays positive cashflow → PAY DAY
-                if value > 0:
+                entry = symbol_cashflow_map[symbol].get(dt, {})
+                total_cashflow = round(entry.get("total_cashflow", 0.0), 2)
+                coupon_payment = round(entry.get("coupon_payment", 0.0), 2)
+
+                row[symbol] = total_cashflow
+                coupon_row[symbol] = coupon_payment
+                # If any symbol pays coupon then PAY DAY = True
+                if coupon_payment > 0:
                     payday = True
             row["PAY DAY"] = payday
             cashflow_rows.append(row)
+            coupon_rows.append(coupon_row)
 
         portfolio_dates = []
         portfolio_amounts = []
@@ -175,7 +183,7 @@ def calculate_gsec_individual_xirr_report_data(
 
         # validate gsec coupons
         reconciled_cashflow_data = validate_gsec_coupons(
-            cashflow_rows, ledger_files, report
+            coupon_rows, ledger_files, report
         )
         gsec_individual_xirr_reports_data.append(
             {
@@ -244,7 +252,7 @@ def validate_gsec_coupons(cashflow_rows, ledger_files, gsec_ci_validator, thresh
         row_date = normalize_date(row["DATE"])
 
         for key, value in row.items():
-            if key in ("DATE", "PAY DAY"):
+            if key in ("DATE"):
                 continue
 
             if isinstance(value, (int, float)) and value > 0:
@@ -331,7 +339,7 @@ def validate_gsec_coupons(cashflow_rows, ledger_files, gsec_ci_validator, thresh
         )
 
     # Sort by date and GSEC
-    result.sort(key=lambda x: (str(x["DATE"]) if x["DATE"] else "", x["GSEC"] or ""))
+    # result.sort(key=lambda x: (str(x["DATE"]) if x["DATE"] else "", x["GSEC"] or ""))
 
     # mismatch handling
     if not all_match:

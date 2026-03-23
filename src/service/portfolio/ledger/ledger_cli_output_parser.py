@@ -167,7 +167,7 @@ def parse_ledger_cli_balance_output(output):
         line = line.strip()
         if not line:
             continue
-        if line.startswith("---") or line.startswith("0"):
+        if line.startswith("---") or line.startswith("0 "):
             continue
 
         arr = line.split(" ")

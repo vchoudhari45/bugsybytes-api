@@ -413,6 +413,7 @@ def calculate_account_metrics_kpi(
                 rebalance_qty = difference / price
 
             row["BUY/SELL"] = rebalance_qty
+            row["BUY/SELL AMOUNT"] = difference
 
             if news_link is not None:
                 row["NEWS LINK"] = news_link

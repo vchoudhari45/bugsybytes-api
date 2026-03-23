@@ -27,16 +27,6 @@ def test_generate_coupon_dates():
     assert coupons == expected_coupons
 
 
-def test_empty_txn_slot():
-    slot = cg.empty_txn_slot()
-    assert slot == {"quantity": 0, "transaction_amount": 0}
-
-
-def test_empty_coupon_slot():
-    slot = cg.empty_coupon_slot()
-    assert slot == {"quantity": 0, "coupon_date": True}
-
-
 def test_apply_coupon_and_principal_simple():
     # input
     cf = {
