@@ -483,7 +483,7 @@ def get_account_performance_metrics_data(report, ledger_files, mutual_funds):
             account_name=report["account_name"],
             session=session,
         )
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
             results = executor.map(compute_func, commodities)
             xirr_output = [r for r in results if r is not None]
 
