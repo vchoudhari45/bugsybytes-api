@@ -107,8 +107,8 @@ def test_calculate_individual_xirr_report_data():
                 output = ledger_data["mutual_fund_balance"][commodity]
         return output
 
-    # mocking amfi_isin_map
-    amfi_isin_map = {
+    # mocking mf_isin_map
+    mf_isin_map = {
         "INF179KB1HP9": "HDFC Liquid Fund - Growth Option - Direct Plan",
         "INF179KB1HR5": "HDFC Money Market Fund - Growth Option- Direct Plan",
     }
@@ -131,8 +131,8 @@ def test_calculate_individual_xirr_report_data():
         "src.service.portfolio.dashboard.account_metrics_data.get_ledger_cli_output_by_config",
         side_effect=mock_get_ledger_cli_output_by_config,
     ), patch(
-        "src.service.portfolio.dashboard.account_metrics_data.fetch_amfi_isin_scheme_map",
-        return_value=amfi_isin_map,
+        "src.service.portfolio.dashboard.account_metrics_data.fetch_mf_isin_scheme_map",
+        return_value=mf_isin_map,
     ), patch(
         "src.service.portfolio.dashboard.account_metrics_data.fetch_nifty_index",
         return_value=nifty_index_data,

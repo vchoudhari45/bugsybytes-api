@@ -7,9 +7,11 @@ import time
 
 import pandas as pd
 import requests
+import yaml
 import yfinance as yf
 
 from src.data.config import (
+    DASHBOARD_CONFIG_PATH,
     LEDGER_IND_COMMODITY_LIST,
     LEDGER_IND_MF_COMMODITY_LIST,
     LEDGER_PRICE_DB_DIR,
@@ -22,6 +24,10 @@ from src.service.util.date_util import parse_indian_date_format
 UPSTOX_ACCESS_TOKEN = os.getenv("UPSTOX_ACCESS_TOKEN")
 CRYPTO_LIST = ["XRP", "BTC", "CORECHAIN", "NEAR", "FLR"]
 nse_gsec_files = read_all_dated_csv_files_from_folder(NSE_GSEC_LIVE_DATA_DIR)
+
+
+with open(DASHBOARD_CONFIG_PATH, "r") as f:
+    dashboard_config = yaml.safe_load(f)
 
 
 def read_commodity_file(file_path):
@@ -132,16 +138,14 @@ def get_instrument_key(symbol):
     return _INSTRUMENT_CACHE[symbol]
 
 
-def load_amfiindia_scheme_code():
+def load_mf_india_scheme_code():
     """
-    Download and cache all AMFI scheme code once.
+    Download and cache all MF scheme code once.
     """
     if _MF_SCHEME_CODE_CACHE:
         return _MF_SCHEME_CODE_CACHE
 
-    print("Loading AMFI India scheme codes....")
-
-    url = "https://portal.amfiindia.com/DownloadSchemeData_Po.aspx?mf=0"
+    url = dashboard_config["dashboard"]["base_urls"]["mf_india_scheme_codes"]
 
     resp = requests.get(url, timeout=30)
     if resp.status_code != 200:
@@ -168,10 +172,10 @@ def load_amfiindia_scheme_code():
 
 def get_scheme_code(symbol):
     """Get schemecode key from cache"""
-    load_amfiindia_scheme_code()
+    load_mf_india_scheme_code()
 
     if symbol not in _MF_SCHEME_CODE_CACHE:
-        raise ValueError(f"Symbol {symbol} not found in AMFI India scheme code list")
+        raise ValueError(f"Symbol {symbol} not found in MF India scheme code list")
 
     return _MF_SCHEME_CODE_CACHE[symbol]
 
@@ -248,7 +252,9 @@ def fetch_ind_mf_price_history(isin, year):
     if not scheme_code:
         return {}
 
-    url = f"https://api.mfapi.in/mf/{scheme_code}"
+    url = (
+        f"{dashboard_config['dashboard']['base_urls']['mf_india_price']}/{scheme_code}"
+    )
 
     from_date = f"{year}-01-01"
     to_date = f"{year}-12-31"

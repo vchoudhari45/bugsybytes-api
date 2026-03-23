@@ -4,7 +4,9 @@ from datetime import datetime
 from functools import partial
 
 import requests
+import yaml
 
+from src.data.config import DASHBOARD_CONFIG_PATH
 from src.service.portfolio.dashboard.nifty_index_data import fetch_nse_stocks
 from src.service.portfolio.ledger.ledger_cli_output_parser import (
     get_ledger_cli_output_by_config,
@@ -12,8 +14,12 @@ from src.service.portfolio.ledger.ledger_cli_output_parser import (
 from src.service.util.date_util import parse_indian_date_format
 from src.service.util.xirr_calculator import xirr
 
-_AMFI_CACHE = None
+_MF_CACHE = None
 _NIFTY_INDEX_CACHE = None
+
+
+with open(DASHBOARD_CONFIG_PATH, "r") as f:
+    dashboard_config = yaml.safe_load(f)
 
 
 def fetch_nifty_index():
@@ -23,17 +29,17 @@ def fetch_nifty_index():
     return _NIFTY_INDEX_CACHE
 
 
-def fetch_amfi_isin_scheme_map(session):
-    global _AMFI_CACHE
+def fetch_mf_isin_scheme_map(session):
+    global _MF_CACHE
 
-    if _AMFI_CACHE is not None:
-        return _AMFI_CACHE
+    if _MF_CACHE is not None:
+        return _MF_CACHE
 
-    url = "https://portal.amfiindia.com/spages/NAVAll.txt"
+    url = dashboard_config["dashboard"]["base_urls"]["mf_india_nav_all"]
     response = session.get(url, timeout=30)
     response.raise_for_status()
 
-    _AMFI_CACHE = {}
+    _MF_CACHE = {}
 
     for line in response.text.splitlines():
         # Skip headers, blank lines, section titles
@@ -48,14 +54,17 @@ def fetch_amfi_isin_scheme_map(session):
         scheme_name = parts[3].strip()
 
         if isin_growth and isin_growth != "-":
-            _AMFI_CACHE[isin_growth] = scheme_name
+            _MF_CACHE[isin_growth] = scheme_name
 
-    return _AMFI_CACHE
+    return _MF_CACHE
 
 
 def get_company_id(company_name, session):
     company_name = company_name.replace("-", " ")
-    url = f"https://www.screener.in/api/company/search/?q={requests.utils.quote(company_name)}"
+    url = (
+        f"{dashboard_config['dashboard']['base_urls']['company_details']}/"
+        f"search/?q={requests.utils.quote(company_name)}"
+    )
     try:
         response = session.get(url, timeout=15)
         response.raise_for_status()
@@ -73,7 +82,7 @@ def get_metrics(company_id, session):
     if not company_id:
         return {}
     url = (
-        f"https://www.screener.in/api/company/{company_id}/chart/"
+        f"{dashboard_config['dashboard']['base_urls']['company_details']}/{company_id}/chart/"
         "?q=Price+to+Earning-Median+PE-EPS"
         "&days=700"
     )
@@ -99,11 +108,11 @@ def get_metrics(company_id, session):
         return {}
 
 
-def get_google_finance_link(is_mf, google_finance_code, commodity):
+def get_finance_link(is_mf, finance_code, commodity):
     if is_mf:
-        return f"https://www.google.com/finance/quote/{google_finance_code}:MUTF_IN"
+        return f"{dashboard_config['dashboard']['base_urls']['finance_quote']}/{finance_code}:MUTF_IN"
     else:
-        return f"https://www.google.com/finance/quote/{commodity}:NSE"
+        return f"{dashboard_config['dashboard']['base_urls']['finance_quote']}/{commodity}:NSE"
 
 
 def find_fund_by_isin(mutual_funds, account_name, isin):
@@ -115,7 +124,7 @@ def find_fund_by_isin(mutual_funds, account_name, isin):
 
 def compute_for_commodity(
     commodity,
-    amfi_isin_map,
+    mf_isin_map,
     nifty_index_data,
     report,
     ledger_files,
@@ -124,7 +133,7 @@ def compute_for_commodity(
     account_name,
     session,
 ):
-    display_name = amfi_isin_map.get(commodity, commodity)
+    display_name = mf_isin_map.get(commodity, commodity)
 
     # Get income flow for each commodity
     income_flow = get_ledger_cli_output_by_config(
@@ -221,12 +230,12 @@ def compute_for_commodity(
     index_data = nifty_index_data.get(commodity, {}) if not is_mf else {}
 
     # adding display name for mutual fund
-    google_finance_code = ""
+    finance_code = ""
     fl_number = ""
     if is_mf:
         fund = find_fund_by_isin(mutual_funds, account_name, commodity)
         fl_number = fund.get("fl_number", "") if fund else ""
-        google_finance_code = fund.get("google_finance_code", "") if fund else ""
+        finance_code = fund.get("finance_code", "") if fund else ""
 
     cashflow_date_strings = [d.strftime("%Y-%m-%d") for d in cashflow_dates]
     print(
@@ -300,7 +309,7 @@ def compute_for_commodity(
         output["TARGET INDEX WEIGHTAGE"] = index_data.get("TARGET INDEX WEIGHTAGE", 0.0)
 
     # 8. News link
-    output["NEWS LINK"] = get_google_finance_link(is_mf, google_finance_code, commodity)
+    output["NEWS LINK"] = get_finance_link(is_mf, finance_code, commodity)
 
     return output
 
@@ -452,7 +461,7 @@ def calculate_individual_xirr_report_data(
 def get_account_performance_metrics_data(report, ledger_files, mutual_funds):
     today = datetime.today().date()
     session = requests.Session()
-    amfi_isin_map = fetch_amfi_isin_scheme_map(session)
+    mf_isin_map = fetch_mf_isin_scheme_map(session)
     nifty_index_data = fetch_nifty_index()
 
     # Get all the commodities
@@ -465,7 +474,7 @@ def get_account_performance_metrics_data(report, ledger_files, mutual_funds):
     if commodities:
         compute_func = partial(
             compute_for_commodity,
-            amfi_isin_map=amfi_isin_map,
+            mf_isin_map=mf_isin_map,
             nifty_index_data=nifty_index_data,
             report=report,
             ledger_files=ledger_files,
