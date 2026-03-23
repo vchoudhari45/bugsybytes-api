@@ -334,7 +334,7 @@ def write_prices_for_year(year, us_commodities, ind_commodities, ind_mf_commodit
         print(f"Fetching Indian MF {commodity} for {year}")
         prices = fetch_ind_mf_price_history(commodity, year)
 
-        time.sleep(1)
+        time.sleep(10)
 
         for d, rate in sorted(prices.items()):
             add_price_line(d, commodity, float(rate), "INR")
