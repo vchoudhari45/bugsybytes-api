@@ -331,7 +331,7 @@ def validate_gsec_coupons(cashflow_rows, ledger_files, gsec_ci_validator, thresh
         )
 
     # Sort by date and GSEC
-    result.sort(key=lambda x: (x["DATE"] or "", x["GSEC"] or ""))
+    result.sort(key=lambda x: (str(x["DATE"]) if x["DATE"] else "", x["GSEC"] or ""))
 
     # mismatch handling
     if not all_match:
