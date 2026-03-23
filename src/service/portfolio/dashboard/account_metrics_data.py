@@ -355,6 +355,7 @@ def calculate_account_metrics_kpi(
     # if it is equity report add nifty index % allocation
     if report_type == "Equity":
         index_market_value_totals = {}
+        index_market_value_totals_with_recommendation = {}
 
         for row in report_data:
             index_name = row.get("NIFTY INDEX")
@@ -363,6 +364,23 @@ def calculate_account_metrics_kpi(
                 index_market_value_totals[index_name] = (
                     index_market_value_totals.get(index_name, 0) + current_value
                 )
+
+        recommendation_kpis = []
+        current_total = total_market_value
+        new_total = current_total + recommended_stock
+        for index_name, target_weight in nifty_index_threshold.items():
+            current_value = index_market_value_totals.get(index_name, 0)
+            target_value = new_total * target_weight
+            additional_investment = target_value - current_value
+            recommendation_kpis.append(
+                {
+                    "KPI": f"RECOMMENDED {index_name} PURCHASE",
+                    "VALUE": round(additional_investment, 2),
+                }
+            )
+            index_market_value_totals_with_recommendation[index_name] = (
+                index_market_value_totals.get(index_name, 0) + additional_investment
+            )
 
         for row in report_data:
             news_link = row.pop("NEWS LINK", None)
@@ -375,6 +393,9 @@ def calculate_account_metrics_kpi(
             index_name = row.get("NIFTY INDEX")
 
             index_total_market_value = index_market_value_totals.get(index_name, 0)
+            index_total_market_value_with_recommendation = (
+                index_market_value_totals_with_recommendation.get(index_name, 0)
+            )
             if index_total_market_value > 0:
                 row["PORTFOLIO WEIGHT"] = round(
                     current_value / index_total_market_value, 6
@@ -382,7 +403,9 @@ def calculate_account_metrics_kpi(
             else:
                 row["PORTFOLIO WEIGHT"] = 0.0
 
-            target_value = index_total_market_value * benchmark_weight
+            target_value = (
+                index_total_market_value_with_recommendation * benchmark_weight
+            )
             difference = target_value - current_value
 
             rebalance_qty = 0.0
@@ -409,23 +432,9 @@ def calculate_account_metrics_kpi(
                     "VALUE": f"{round(invested_amount, 2)}|{allocation_percent}",
                 }
             )
-        kpi_list.extend(index_allocation_kpis)
 
-        if report_name == "Consolidated Equity" and recommended_stock > 0:
-            current_total = total_market_value
-            new_total = current_total + recommended_stock
-            recommendation_kpis = []
-            for index_name, target_weight in nifty_index_threshold.items():
-                current_value = index_market_value_totals.get(index_name, 0)
-                target_value = new_total * target_weight
-                additional_investment = target_value - current_value
-                recommendation_kpis.append(
-                    {
-                        "KPI": f"RECOMMENDED {index_name} PURCHASE",
-                        "VALUE": round(additional_investment, 2),
-                    }
-                )
-            kpi_list.extend(recommendation_kpis)
+        kpi_list.extend(index_allocation_kpis)
+        kpi_list.extend(recommendation_kpis)
 
     return kpi_list
 
@@ -483,7 +492,7 @@ def get_account_performance_metrics_data(report, ledger_files, mutual_funds):
             account_name=report["account_name"],
             session=session,
         )
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             results = executor.map(compute_func, commodities)
             xirr_output = [r for r in results if r is not None]
 

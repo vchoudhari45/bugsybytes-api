@@ -207,7 +207,7 @@ def generate_gsec_portfolio_df(ledger_files, report):
             ledger_files=ledger_files,
             account_name=report["account_name"],
         )
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             results = executor.map(compute_func, commodities)
             xirr_output = [r for r in results if r is not None]
 
