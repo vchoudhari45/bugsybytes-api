@@ -253,7 +253,7 @@ def fetch_ind_mf_price_history(isin, year):
     from_date = f"{year}-01-01"
     to_date = f"{year}-12-31"
 
-    resp = requests.get(url, timeout=30)
+    resp = requests.get(url, timeout=300)
 
     if resp.status_code != 200:
         print(f"ERROR: {isin} - Status {resp.status_code}: {resp.text}")
