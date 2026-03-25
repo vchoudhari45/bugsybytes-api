@@ -33,11 +33,12 @@ def fetch_nse_stocks():
     session = requests.Session()
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": base_url,
+        "User-Agent": "Mozilla/5.0",
         "Accept": "application/json, text/plain, */*",
+        "Referer": base_url,
         "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "X-Requested-With": "XMLHttpRequest",
     }
     session.headers.update(headers)
 
@@ -54,7 +55,15 @@ def fetch_nse_stocks():
         url = f"{base_url}{api_endpoint}?index={index_param}"
         try:
             response = get_with_retry(session, url)
-            data = response.json()
+
+            if not response.text.strip():
+                raise ValueError("Empty response")
+
+            try:
+                data = response.json()
+            except Exception:
+                print(f"Non-JSON response for {index_name}: {response.text[:200]}")
+                raise
 
             for stock in data.get("data", []):
                 symbol = stock.get("symbol")
@@ -131,6 +140,5 @@ def fetch_nse_stocks():
 #             writer.writerow(row)
 #     except Exception as e:
 #         print(f"Error running script: {e}")
-
 # if __name__ == "__main__":
 #     main()

@@ -1,9 +1,10 @@
 import csv
 import io
 import os
-import re
 import sys
 import time
+from datetime import datetime
+from typing import Dict
 
 import pandas as pd
 import requests
@@ -19,7 +20,6 @@ from src.data.config import (
     NSE_GSEC_LIVE_DATA_DIR,
 )
 from src.service.util.csv_util import read_all_dated_csv_files_from_folder
-from src.service.util.date_util import parse_indian_date_format
 
 UPSTOX_ACCESS_TOKEN = os.getenv("UPSTOX_ACCESS_TOKEN")
 CRYPTO_LIST = ["XRP", "BTC", "CORECHAIN", "NEAR", "FLR"]
@@ -138,48 +138,6 @@ def get_instrument_key(symbol):
     return _INSTRUMENT_CACHE[symbol]
 
 
-def load_mf_india_scheme_code():
-    """
-    Download and cache all MF scheme code once.
-    """
-    if _MF_SCHEME_CODE_CACHE:
-        return _MF_SCHEME_CODE_CACHE
-
-    url = dashboard_config["dashboard"]["base_urls"]["mf_india_scheme_codes"]
-
-    resp = requests.get(url, timeout=30)
-    if resp.status_code != 200:
-        print(f"ERROR: Failed to download scheme data - Status {resp.status_code}")
-        return None
-
-    reader = csv.reader(io.StringIO(resp.text))
-    count = 0
-    for row in reader:
-        if len(row) < 9:
-            continue
-        scheme_code = row[1]
-        isins = row[9]
-        isin_list = re.split(r"(?=INF)", isins)
-
-        if len(isin_list) > 0:
-            for isin in isin_list:
-                _MF_SCHEME_CODE_CACHE[isin] = scheme_code
-                count += 1
-
-    print(f"Loaded {count} MF instruments")
-    return _MF_SCHEME_CODE_CACHE
-
-
-def get_scheme_code(symbol):
-    """Get schemecode key from cache"""
-    load_mf_india_scheme_code()
-
-    if symbol not in _MF_SCHEME_CODE_CACHE:
-        raise ValueError(f"Symbol {symbol} not found in MF India scheme code list")
-
-    return _MF_SCHEME_CODE_CACHE[symbol]
-
-
 def fetch_ind_price_history(symbol, year):
     """
     Fetch daily closing prices from Upstox (EOD candles).
@@ -244,46 +202,78 @@ def fetch_us_price_history(symbol, year):
     }
 
 
-def fetch_ind_mf_price_history(isin, year):
-    """
-    Fetch mutual fund NAV history for a year using mfapi.in.
-    """
-    scheme_code = get_scheme_code(isin)
-    if not scheme_code:
+_MF_NAV_CACHE: Dict[str, Dict] = None
+
+
+def fetch_ind_mf_price_history(isin: str, year: int) -> Dict[str, float]:
+    global _MF_NAV_CACHE
+
+    if _MF_NAV_CACHE is None:
+        _MF_NAV_CACHE = {}
+        url = dashboard_config["dashboard"]["base_urls"]["mf_india_nav_all"]
+
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            text = response.text.strip()
+
+            for line in text.splitlines():
+                line = line.strip()
+                if not line or ";" not in line or line.startswith("Scheme Code"):
+                    continue
+
+                parts = [p.strip() for p in line.split(";")]
+                if len(parts) < 6:
+                    continue
+
+                isin1 = parts[1] if len(parts) > 1 and parts[1] != "-" else ""
+                isin2 = parts[2] if len(parts) > 2 and parts[2] != "-" else ""
+                scheme_name = parts[3] if len(parts) > 3 else ""
+                nav_str = parts[4] if len(parts) > 4 else "0"
+                nav_date_str = parts[5] if len(parts) > 5 else ""
+
+                try:
+                    nav = float(nav_str)
+                    dt = datetime.strptime(nav_date_str, "%d-%b-%Y")
+
+                    # Changed to proper YYYY-MM-DD format
+                    date_key = dt.strftime("%Y-%m-%d")
+
+                    data = {
+                        "nav": nav,
+                        "date": date_key,
+                        "date_obj": dt,
+                        "scheme_name": scheme_name,
+                    }
+
+                    if isin1:
+                        _MF_NAV_CACHE[isin1.upper()] = data
+                    if isin2 and isin2 != isin1:
+                        _MF_NAV_CACHE[isin2.upper()] = data
+
+                except (ValueError, TypeError):
+                    continue
+
+            print(f"NAV cache built successfully with {len(_MF_NAV_CACHE)} schemes")
+
+        except Exception as e:
+            print(f"ERROR: Failed to build NAV cache - {e}")
+            _MF_NAV_CACHE = {}
+
+    isin_upper = isin.upper()
+    if isin_upper not in _MF_NAV_CACHE:
+        print(f"WARNING: ISIN {isin} not found in latest NAV")
         return {}
 
-    url = (
-        f"{dashboard_config['dashboard']['base_urls']['mf_india_price']}/{scheme_code}"
-    )
+    cached = _MF_NAV_CACHE[isin_upper]
 
-    from_date = f"{year}-01-01"
-    to_date = f"{year}-12-31"
-
-    resp = requests.get(url, timeout=600)
-
-    if resp.status_code != 200:
-        print(f"ERROR: {isin} - Status {resp.status_code}: {resp.text}")
+    if cached["date_obj"].year != year:
+        print(
+            f"WARNING: Latest NAV for {isin} is on {cached['date']} (not in year {year})"
+        )
         return {}
 
-    data = resp.json()
-
-    if "data" not in data:
-        print(f"WARNING: No data found for scheme {scheme_code}")
-        print(f"Response: {data}")
-        return {}
-
-    prices = {}
-    from_dt = parse_indian_date_format(from_date)
-    to_dt = parse_indian_date_format(to_date)
-
-    for entry in data["data"]:
-        dt = parse_indian_date_format(entry["date"])
-        date_str = parse_indian_date_format(dt)
-        if from_dt <= dt <= to_dt:
-            nav = float(entry["nav"])
-            prices[date_str] = nav
-
-    return prices
+    return {cached["date"]: cached["nav"]}
 
 
 def write_prices_for_year(year, us_commodities, ind_commodities, ind_mf_commodities):
@@ -339,8 +329,6 @@ def write_prices_for_year(year, us_commodities, ind_commodities, ind_mf_commodit
 
         print(f"Fetching Indian MF {commodity} for {year}")
         prices = fetch_ind_mf_price_history(commodity, year)
-
-        time.sleep(10)
 
         for d, rate in sorted(prices.items()):
             add_price_line(d, commodity, float(rate), "INR")
